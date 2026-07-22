@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Product Order · Firebase</title>
+  <title>Product Order · Firestore</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet" />
@@ -544,10 +544,11 @@
 
   <div class="wrap app-shell hidden" id="appShell">
     <header>
-      <div class="eyebrow">Google Sheet · Drive Images · Firebase</div>
+      <div class="eyebrow">Firestore · Storage · Auth</div>
       <h1>Product Order</h1>
       <div class="auth-meta">
         <div class="auth-user" id="authUserLabel"></div>
+        <a href="admin.html" class="btn-secondary btn-sm" style="text-decoration:none;display:inline-flex;align-items:center;">Admin</a>
         <button type="button" class="btn-secondary btn-sm" id="btnLogout">Logout</button>
       </div>
     </header>
@@ -558,7 +559,7 @@
           <h2>Products · Items</h2>
           <div class="btns">
             <button type="button" class="btn-secondary btn-sm" id="btnClearQty">Clear Qty</button>
-            <button type="button" class="btn-secondary btn-sm" id="btnReload">Reload Google</button>
+            <button type="button" class="btn-secondary btn-sm" id="btnReload">Reload Firebase</button>
           </div>
         </div>
 
@@ -611,24 +612,25 @@
 
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
   <script src="firebase-config.js"></script>
   <script src="config.js"></script>
   <script>
     const CFG = window.APP_CONFIG || {};
-    const DRAFT_KEY = "tester-order-firebase-draft-v1";
-    const CACHE_KEY = "tester-order-firebase-cache-v1";
+    const DRAFT_KEY = "tester-order-firestore-draft-v1";
+    const CACHE_KEY = "tester-order-firestore-cache-v1";
     /** Skip network refresh if cache is newer than this (ms). Force reload always fetches. */
     const CACHE_MAX_AGE_MS = 5 * 60 * 1000;
-    /** How often the open app re-checks images-map.json (ms). */
-    const IMAGE_REFRESH_MS = 60 * 1000;
+    /** How often the open app re-checks Firestore (ms). */
+    const DATA_REFRESH_MS = 60 * 1000;
     const RESULT_LIMIT = 120;
     const BRAND_ORDER = ["COLORSILK", "ECOCO", "FANTASIA", "GILLETTE", "YARDLEY"];
     const UPDATE_MSG = "최신정보로 업데이트 중입니다";
+    const PRODUCTS_COLLECTION = CFG.PRODUCTS_COLLECTION || "products";
 
     let products = []; // flat list with brand
     let brands = [];
-    /** @type {Map<string, {id: string, name: string}>} */
-    let imageIndex = new Map();
 
     const state = { brand: null, qtys: {} };
 
@@ -655,8 +657,9 @@
     };
 
     let appStarted = false;
-    let imageTimer = null;
+    let dataTimer = null;
     let auth = null;
+    let db = null;
 
     function toast(msg) {
       els.toast.textContent = msg;
@@ -768,252 +771,54 @@
       return `${p.brand || ""}::${p.name || ""}`.toUpperCase();
     }
 
-    function driveThumb(fileId, attempt) {
-      const id = encodeURIComponent(fileId);
-      if (attempt === 1) return `https://drive.google.com/thumbnail?id=${id}&sz=w240`;
-      if (attempt === 2) return `https://drive.google.com/uc?export=view&id=${id}`;
-      return `https://lh3.googleusercontent.com/d/${id}=w240`;
-    }
-
     function resolveImage(product) {
-      if (!imageIndex.size) return null;
-
-      // Match by full Google Sheet item name == image filename (without .jpg)
-      for (const k of imageMatchKeys(product.name)) {
-        if (imageIndex.has(k)) {
-          const img = imageIndex.get(k);
-          return { id: img.id, src: driveThumb(img.id) };
-        }
-      }
-      return null;
+      const src = String(product.imageUrl || "").trim();
+      if (!src) return null;
+      return { id: product.docId || "", src };
     }
 
     function onThumbError(img) {
-      const id = img.dataset.driveId;
-      const attempt = Number(img.dataset.attempt || 0) + 1;
-      if (!id || attempt > 2) {
-        img.hidden = true;
-        return;
-      }
-      img.dataset.attempt = String(attempt);
-      img.src = driveThumb(id, attempt);
+      img.hidden = true;
     }
     window.onThumbError = onThumbError;
 
-    /* ---------- CSV / network ---------- */
+    /* ---------- Firestore catalog ---------- */
 
-    function parseCsv(text) {
-      const rows = [];
-      let row = [];
-      let cell = "";
-      let inQuotes = false;
-      const src = String(text || "").replace(/^\uFEFF/, "");
-
-      for (let i = 0; i < src.length; i++) {
-        const ch = src[i];
-        const next = src[i + 1];
-        if (inQuotes) {
-          if (ch === '"' && next === '"') {
-            cell += '"';
-            i++;
-          } else if (ch === '"') {
-            inQuotes = false;
-          } else {
-            cell += ch;
-          }
-          continue;
-        }
-        if (ch === '"') {
-          inQuotes = true;
-        } else if (ch === ",") {
-          row.push(cell);
-          cell = "";
-        } else if (ch === "\n") {
-          row.push(cell);
-          rows.push(row);
-          row = [];
-          cell = "";
-        } else if (ch === "\r") {
-          /* skip */
-        } else {
-          cell += ch;
-        }
-      }
-      if (cell.length || row.length) {
-        row.push(cell);
-        rows.push(row);
-      }
-      return rows;
+    function docToProduct(doc, index) {
+      const d = doc.data() || {};
+      const name = String(d.name || "").trim();
+      if (!name) return null;
+      const brand = String(d.brand || "").trim() || brandOf(name) || name.split(/\s+/)[0].toUpperCase();
+      return {
+        id: index + 1,
+        docId: doc.id,
+        brand,
+        code: String(d.code || extractCode(name)),
+        name,
+        price: Number(d.price) || 0,
+        stock: Number(d.stock) || 0,
+        imageUrl: String(d.imageUrl || "").trim(),
+        sortOrder: Number(d.sortOrder) || index
+      };
     }
 
-    async function fetchTextViaProxies(url) {
-      const encoded = encodeURIComponent(url);
-      const candidates = [
-        url,
-        `https://api.allorigins.win/raw?url=${encoded}`,
-        `https://corsproxy.io/?${encoded}`,
-        // Jina reader often works when other CORS proxies fail.
-        `https://r.jina.ai/http://${url.replace(/^https?:\/\//, "")}`,
-        `https://r.jina.ai/${url}`
-      ];
-      let lastErr;
-      for (const u of candidates) {
-        try {
-          const res = await fetch(u, { cache: "no-store" });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const text = await res.text();
-          if (!text || /accounts\.google\.com\/ServiceLogin/i.test(text)) {
-            throw new Error("Sheet/folder is not publicly shared");
-          }
-          if (/Server-side requests are not allowed/i.test(text)) {
-            throw new Error("Proxy blocked");
-          }
-          return text;
-        } catch (err) {
-          lastErr = err;
-        }
-      }
-      throw lastErr || new Error("Network failed");
-    }
-
-    function gvizTableToRows(table) {
-      const cols = (table.cols || []).map((c) => c.label || c.id || "");
-      const rows = [cols];
-      for (const r of table.rows || []) {
-        rows.push((r.c || []).map((cell) => {
-          if (!cell) return "";
-          if (cell.v == null) return "";
-          return cell.v;
-        }));
-      }
-      return rows;
-    }
-
-    function loadSheetViaJsonp() {
-      return new Promise((resolve, reject) => {
-        const cbName = `__gsCb_${Date.now()}_${Math.floor(Math.random() * 1e6)}`;
-        const script = document.createElement("script");
-        const timer = setTimeout(() => {
-          cleanup();
-          reject(new Error("Sheet JSONP timeout"));
-        }, 20000);
-
-        function cleanup() {
-          clearTimeout(timer);
-          try { delete window[cbName]; } catch { /* ignore */ }
-          if (script.parentNode) script.parentNode.removeChild(script);
-        }
-
-        window[cbName] = (response) => {
-          cleanup();
-          if (!response || response.status !== "ok" || !response.table) {
-            reject(new Error((response && response.errors && response.errors[0] && response.errors[0].detailed_message) || "Sheet query failed"));
-            return;
-          }
-          resolve(gvizTableToRows(response.table));
-        };
-
-        const id = CFG.SHEET_ID;
-        const gid = CFG.SHEET_GID || "0";
-        script.src = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=responseHandler:${cbName}&gid=${encodeURIComponent(gid)}`;
-        script.onerror = () => {
-          cleanup();
-          reject(new Error("Sheet script load failed"));
-        };
-        document.body.appendChild(script);
+    async function loadProductsFromFirestore() {
+      if (!db) throw new Error("Firestore is not initialized");
+      const snap = await db.collection(PRODUCTS_COLLECTION).get();
+      const list = [];
+      snap.forEach((doc) => {
+        const p = docToProduct(doc, list.length);
+        if (p) list.push(p);
       });
-    }
-
-    async function fetchSheetWithApiKey() {
-      const key = (CFG.GOOGLE_API_KEY || "").trim();
-      if (!key) return null;
-      const id = CFG.SHEET_ID;
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/A:C?key=${encodeURIComponent(key)}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Sheets API ${res.status}`);
-      const json = await res.json();
-      return json.values || [];
-    }
-
-    function firstSuccessful(tasks) {
-      return new Promise((resolve, reject) => {
-        let left = tasks.length;
-        let lastErr = new Error("Could not load Google Sheet");
-        let done = false;
-        for (const task of tasks) {
-          Promise.resolve()
-            .then(task)
-            .then((rows) => {
-              if (done) return;
-              if (rows && rows.length > 1) {
-                done = true;
-                resolve(rows);
-              } else if (--left === 0) {
-                reject(lastErr);
-              }
-            })
-            .catch((err) => {
-              lastErr = err;
-              if (!done && --left === 0) reject(lastErr);
-            });
-        }
+      list.sort((a, b) => {
+        const brandCmp = a.brand.localeCompare(b.brand);
+        if (brandCmp) return brandCmp;
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.name.localeCompare(b.name);
       });
-    }
-
-    async function loadSheetRows() {
-      if ((CFG.GOOGLE_API_KEY || "").trim()) {
-        try {
-          const apiRows = await fetchSheetWithApiKey();
-          if (apiRows && apiRows.length) return apiRows;
-        } catch (err) {
-          console.warn("Sheets API failed, falling back", err);
-        }
-      }
-
-      // Race JSONP + CSV — use whichever returns first
-      const gid = CFG.SHEET_GID || "0";
-      const csvUrl = `https://docs.google.com/spreadsheets/d/${CFG.SHEET_ID}/gviz/tq?tqx=out:csv&gid=${gid}`;
-      return firstSuccessful([
-        () => loadSheetViaJsonp(),
-        async () => {
-          const text = await fetchTextViaProxies(csvUrl);
-          return parseCsv(text);
-        }
-      ]);
-    }
-
-    function catalogFromRows(rows) {
-      if (!rows.length) return [];
-      const out = [];
-      const seen = new Set();
-      let currentBrand = null;
-
-      for (const row of rows) {
-        const name = String(row[0] ?? "").trim();
-        if (!name) continue;
-        const priceRaw = row[1];
-        const stockRaw = row[2];
-        // A section header row switches the current brand and adds no item.
-        if (isSectionHeaderRow(name, priceRaw, stockRaw)) {
-          currentBrand = brandDisplayName(name);
-          continue;
-        }
-        // Prefer a recognized brand prefix, else the current sheet section,
-        // else the item's first word. This lets NEW brands work automatically.
-        const brand = brandOf(name) || currentBrand || name.split(/\s+/)[0].toUpperCase();
-        const dedupe = `${brand}::${name}`.toUpperCase();
-        if (seen.has(dedupe)) continue;
-        seen.add(dedupe);
-        out.push({
-          id: out.length + 1,
-          brand,
-          code: extractCode(name),
-          name,
-          price: Number(priceRaw) || 0,
-          stock: Number(stockRaw) || 0
-        });
-      }
-      return out;
+      // re-number display ids after sort
+      list.forEach((p, i) => { p.id = i + 1; });
+      return list;
     }
 
     function syncBrands() {
@@ -1023,130 +828,6 @@
         if (!brands.includes(b)) brands.push(b);
       }
       if (state.brand && !brands.includes(state.brand)) state.brand = null;
-    }
-
-    /* ---------- Drive images ---------- */
-
-    async function fetchDriveWithApiKey() {
-      const key = (CFG.GOOGLE_API_KEY || "").trim();
-      if (!key) return null;
-      const folderId = CFG.DRIVE_FOLDER_ID;
-      const q = encodeURIComponent(`'${folderId}' in parents and trashed=false`);
-      const fields = encodeURIComponent("files(id,name,mimeType),nextPageToken");
-      let pageToken = "";
-      const files = [];
-      do {
-        const page = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
-        const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=${fields}&pageSize=1000&key=${encodeURIComponent(key)}${page}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`Drive API ${res.status}`);
-        const json = await res.json();
-        files.push(...(json.files || []));
-        pageToken = json.nextPageToken || "";
-      } while (pageToken);
-      return files;
-    }
-
-    function parseDriveFolderHtml(html) {
-      const byId = new Map();
-      const trRe = /<tr[^>]*data-id="(1[a-zA-Z0-9_-]{20,})"[^>]*>([\s\S]*?)<\/tr>/gi;
-      let m;
-      while ((m = trRe.exec(html))) {
-        const id = m[1];
-        const block = m[2];
-        const nameMatch =
-          block.match(/>([^<>]+\.(?:jpe?g|png|webp|gif))</i) ||
-          block.match(/aria-label="([^"]+\.(?:jpe?g|png|webp|gif))"/i);
-        if (!nameMatch) continue;
-        byId.set(id, { id, name: nameMatch[1].trim() });
-      }
-      // Fallback for alternate Drive HTML shapes
-      if (!byId.size) {
-        const loose = /data-id="(1[a-zA-Z0-9_-]{20,})"[^>]*>[\s\S]{0,800}?([^<>"']+\.(?:jpe?g|png|webp|gif))/gi;
-        while ((m = loose.exec(html))) {
-          byId.set(m[1], { id: m[1], name: m[2].trim() });
-        }
-      }
-      return [...byId.values()];
-    }
-
-    function embeddedDriveImages() {
-      const list = window.DRIVE_IMAGES;
-      return Array.isArray(list) ? list : [];
-    }
-
-    async function loadImagesMapFile() {
-      try {
-        // Cache-busting is required because GitHub Pages may cache this file.
-        const res = await fetch(`images-map.json?v=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) return [];
-        const json = await res.json();
-        return Array.isArray(json) ? json : [];
-      } catch {
-        return [];
-      }
-    }
-
-    function mergeImageFiles(...lists) {
-      const byId = new Map();
-      for (const list of lists) {
-        for (const f of list || []) {
-          if (!f || !f.id || !f.name) continue;
-          byId.set(f.id, { id: f.id, name: String(f.name).trim() });
-        }
-      }
-      return [...byId.values()];
-    }
-
-    async function fetchDriveFolderLive(timeoutMs = 10000) {
-      const folderUrl = `https://drive.google.com/drive/folders/${CFG.DRIVE_FOLDER_ID}`;
-      const html = await Promise.race([
-        fetchTextViaProxies(folderUrl),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Drive timeout")), timeoutMs))
-      ]);
-      return parseDriveFolderHtml(html);
-    }
-
-    async function loadDriveImages(forceLive) {
-      const embedded = embeddedDriveImages();
-      const hasApiKey = Boolean((CFG.GOOGLE_API_KEY || "").trim());
-      const tasks = [loadImagesMapFile()];
-
-      // Reload Google: also try live Drive listing so new photos appear immediately.
-      if (forceLive) {
-        if (hasApiKey) {
-          tasks.push(
-            fetchDriveWithApiKey()
-              .then((apiFiles) => (apiFiles || []).filter((f) => /\.(jpe?g|png|webp|gif)$/i.test(f.name || "")))
-              .catch((err) => {
-                console.warn("Drive API failed", err);
-                return [];
-              })
-          );
-        }
-        tasks.push(
-          fetchDriveFolderLive(10000).catch((err) => {
-            console.warn("Live Drive folder failed", err);
-            return [];
-          })
-        );
-      }
-
-      const lists = await Promise.all(tasks);
-      return mergeImageFiles(embedded, ...lists);
-    }
-
-    function buildImageIndex(files) {
-      const map = new Map();
-      for (const f of files || []) {
-        const name = String(f.name || "").trim();
-        if (!name || !f.id) continue;
-        const base = imageBaseName(name);
-        for (const k of imageMatchKeys(base)) {
-          map.set(k, { id: f.id, name });
-        }
-      }
-      return map;
     }
 
     /* ---------- UI ---------- */
@@ -1238,7 +919,7 @@
 
     function renderCatalog() {
       if (!products.length) {
-        els.catalog.innerHTML = `<div class="empty-hint">No products loaded. Tap Reload Google.</div>`;
+        els.catalog.innerHTML = `<div class="empty-hint">No products loaded. Tap Reload Firebase.</div>`;
         return;
       }
 
@@ -1262,7 +943,7 @@
       }
 
       if (!state.brand) {
-        els.catalog.innerHTML = `<div class="empty-hint">Search for a product above, or select a brand.<br/>Catalog: ${products.length} items · Photos: ${imageIndex.size}</div>`;
+        els.catalog.innerHTML = `<div class="empty-hint">Search for a product above, or select a brand.<br/>Catalog: ${products.length} items · Photos: ${photoCount()}</div>`;
         return;
       }
 
@@ -1312,7 +993,7 @@
         if (!groups.has(item.brand)) groups.set(item.brand, []);
         groups.get(item.brand).push(item);
       }
-      const lines = ["[Product Order · Google]", ""];
+      const lines = ["[Product Order · Firestore]", ""];
       for (const [brand, list] of groups.entries()) {
         lines.push(brand);
         list.forEach((i) => lines.push(`${i.name} ${money(i.price)} × ${i.qty}`));
@@ -1404,12 +1085,11 @@
       } catch { /* ignore */ }
     }
 
-    function saveCache(rows, files) {
+    function saveCache(list) {
       try {
         localStorage.setItem(CACHE_KEY, JSON.stringify({
           savedAt: Date.now(),
-          rows,
-          files
+          products: list
         }));
       } catch { /* quota */ }
     }
@@ -1417,7 +1097,7 @@
     function loadCache() {
       try {
         const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
-        if (!cached || !Array.isArray(cached.rows)) return null;
+        if (!cached || !Array.isArray(cached.products)) return null;
         return cached;
       } catch {
         return null;
@@ -1431,33 +1111,38 @@
       saveDraft();
     }
 
-    async function refreshImagesOnly() {
+    function photoCount() {
+      return products.filter((p) => p.imageUrl).length;
+    }
+
+    async function refreshDataQuiet() {
       try {
-        const files = await loadDriveImages(false);
-        imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), files));
-        renderCatalog();
+        const list = await loadProductsFromFirestore();
+        products = list;
+        syncBrands();
+        saveCache(list);
+        refresh();
+        setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${photoCount()} photos`);
       } catch (err) {
-        console.warn("Image map refresh failed", err);
+        console.warn("Background Firestore refresh failed", err);
       }
     }
 
-    async function loadFromGoogle(force) {
+    async function loadFromFirebase(force) {
       els.btnReload.disabled = true;
 
       const cached = !force ? loadCache() : null;
       const cacheAge = cached && cached.savedAt ? Date.now() - cached.savedAt : Infinity;
       const cacheFresh = cacheAge < CACHE_MAX_AGE_MS;
 
-      if (cached && cached.rows && cached.rows.length) {
-        products = catalogFromRows(cached.rows);
+      if (cached && cached.products && cached.products.length) {
+        products = cached.products;
         syncBrands();
-        imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), cached.files || []));
         refresh();
         if (cacheFresh && !force) {
-          setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${imageIndex.size} photos`);
+          setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${photoCount()} photos`);
           els.btnReload.disabled = false;
-          // Keep the cached catalog visible immediately, then update photos in background.
-          refreshImagesOnly();
+          refreshDataQuiet();
           return;
         }
         setStatus(`<span class="ok">${UPDATE_MSG}</span>`);
@@ -1467,27 +1152,23 @@
       }
 
       try {
-        const [rows, files] = await Promise.all([
-          loadSheetRows(),
-          loadDriveImages(!!force).catch((err) => {
-            console.warn(err);
-            return embeddedDriveImages();
-          })
-        ]);
-        products = catalogFromRows(rows);
+        const list = await loadProductsFromFirestore();
+        products = list;
         syncBrands();
-        imageIndex = buildImageIndex(mergeImageFiles(embeddedDriveImages(), files));
-        saveCache(rows, files);
-        setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${imageIndex.size} photos`);
+        saveCache(list);
+        setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${photoCount()} photos`);
         refresh();
-        if (force) toast(`Loaded ${products.length} products · ${imageIndex.size} photos`);
+        if (force) toast(`Loaded ${products.length} products · ${photoCount()} photos`);
+        if (!list.length) {
+          els.catalog.innerHTML = `<div class="empty-hint">Firestore에 상품이 없습니다.<br/>admin.html 에서 상품을 등록하거나 Firebase Console에서 <code>products</code> 컬렉션을 추가하세요.</div>`;
+        }
       } catch (err) {
         console.error(err);
         if (!products.length) {
-          els.catalog.innerHTML = `<div class="empty-hint">Failed to load Google Sheet.<br/>공유 설정을 “링크가 있는 모든 사용자”로 바꿔 주세요.<br/><span class="err">${escapeHtml(err.message || err)}</span></div>`;
+          els.catalog.innerHTML = `<div class="empty-hint">Failed to load Firestore.<br/>로그인·Rules·Firestore 설정을 확인하세요.<br/><span class="err">${escapeHtml(err.message || err)}</span></div>`;
         }
         setStatus(`<span class="err">Load failed</span> · ${escapeHtml(err.message || "error")}`);
-        if (!products.length) toast("Google data load failed");
+        if (!products.length) toast("Firebase data load failed");
       } finally {
         els.btnReload.disabled = false;
       }
@@ -1526,7 +1207,7 @@
       toast("Quantities cleared.");
     });
 
-    els.btnReload.addEventListener("click", () => loadFromGoogle(true));
+    els.btnReload.addEventListener("click", () => loadFromFirebase(true));
 
     document.getElementById("btnSave").addEventListener("click", async () => {
       const items = getItems();
@@ -1584,9 +1265,9 @@
       els.authGate.classList.remove("hidden");
       els.appShell.classList.add("hidden");
       els.authError.textContent = "";
-      if (imageTimer) {
-        clearInterval(imageTimer);
-        imageTimer = null;
+      if (dataTimer) {
+        clearInterval(dataTimer);
+        dataTimer = null;
       }
     }
 
@@ -1597,9 +1278,8 @@
       }
       appStarted = true;
       loadDraft();
-      imageIndex = buildImageIndex(embeddedDriveImages());
-      loadFromGoogle(false);
-      imageTimer = setInterval(refreshImagesOnly, IMAGE_REFRESH_MS);
+      loadFromFirebase(false);
+      dataTimer = setInterval(refreshDataQuiet, DATA_REFRESH_MS);
     }
 
     function showLoggedIn(user) {
@@ -1624,6 +1304,7 @@
 
       firebase.initializeApp(fb);
       auth = firebase.auth();
+      db = firebase.firestore();
 
       if (window.FIREBASE_ALLOW_SIGNUP) {
         els.btnSignup.style.display = "";

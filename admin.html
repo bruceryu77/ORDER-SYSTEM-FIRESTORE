@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product Admin · Firestore</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --ink: #1c1914;
+      --card: #fffdf8;
+      --line: #d9d0c2;
+      --accent: #0f6b4c;
+      --danger: #a12828;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(160deg, #efe8da, #f7f3ea 45%, #e7f0ea);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    .sub { color: #5c564c; margin-bottom: 20px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 700px) { .row { grid-template-columns: 1fr; } }
+    label { display: grid; gap: 6px; font-size: 0.9rem; }
+    input, select, button, textarea {
+      font: inherit;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary { background: #3f3a33; }
+    button.danger { background: var(--danger); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .error { color: var(--danger); min-height: 1.2em; }
+    .list { display: grid; gap: 10px; }
+    .item {
+      display: grid;
+      grid-template-columns: 64px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      background: #fff;
+    }
+    .item img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: #eee;
+    }
+    .muted { color: #6b6458; font-size: 0.85rem; }
+    .hidden { display: none !important; }
+    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>Product Admin</h1>
+        <p class="sub">Firestore 상품 + Storage 이미지 등록</p>
+      </div>
+      <div class="btns">
+        <a href="index.html" style="align-self:center;color:var(--accent);">← 주문 앱</a>
+        <button type="button" class="secondary hidden" id="btnLogout">Logout</button>
+      </div>
+    </div>
+
+    <div class="card" id="loginCard">
+      <label>ID (이메일)
+        <input type="email" id="email" autocomplete="username" placeholder="admin@amor.local" />
+      </label>
+      <label style="margin-top:10px;">Password
+        <input type="password" id="password" autocomplete="current-password" />
+      </label>
+      <p class="error" id="loginError"></p>
+      <button type="button" id="btnLogin" style="margin-top:8px;width:100%;">Login</button>
+    </div>
+
+    <div id="adminShell" class="hidden">
+      <div class="card">
+        <h2 style="margin-top:0;font-size:1.1rem;">상품 추가 / 수정</h2>
+        <input type="hidden" id="editId" />
+        <div class="row">
+          <label>Name *
+            <input id="name" placeholder="COLORSILK 03 ULT/LT SUN BLONDE" />
+          </label>
+          <label>Brand
+            <input id="brand" placeholder="COLORSILK (비우면 이름에서 추정)" />
+          </label>
+          <label>Price
+            <input id="price" type="number" step="0.01" min="0" value="0" />
+          </label>
+          <label>Stock
+            <input id="stock" type="number" step="1" min="0" value="0" />
+          </label>
+        </div>
+        <label style="margin-top:10px;">Image
+          <input id="image" type="file" accept="image/*" />
+        </label>
+        <p class="muted" id="currentImageHint"></p>
+        <p class="error" id="formError"></p>
+        <div class="btns" style="margin-top:10px;">
+          <button type="button" id="btnSave">Save product</button>
+          <button type="button" class="secondary" id="btnReset">Clear form</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="topbar">
+          <h2 style="margin:0;font-size:1.1rem;">등록된 상품</h2>
+          <button type="button" class="secondary" id="btnRefresh">Refresh</button>
+        </div>
+        <p class="muted" id="listStatus">-</p>
+        <div class="list" id="list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="config.js"></script>
+  <script>
+    const CFG = window.APP_CONFIG || {};
+    const COLLECTION = CFG.PRODUCTS_COLLECTION || "products";
+    const PREFIX = CFG.STORAGE_PRODUCTS_PREFIX || "products";
+
+    const els = {
+      loginCard: document.getElementById("loginCard"),
+      adminShell: document.getElementById("adminShell"),
+      email: document.getElementById("email"),
+      password: document.getElementById("password"),
+      loginError: document.getElementById("loginError"),
+      btnLogin: document.getElementById("btnLogin"),
+      btnLogout: document.getElementById("btnLogout"),
+      editId: document.getElementById("editId"),
+      name: document.getElementById("name"),
+      brand: document.getElementById("brand"),
+      price: document.getElementById("price"),
+      stock: document.getElementById("stock"),
+      image: document.getElementById("image"),
+      currentImageHint: document.getElementById("currentImageHint"),
+      formError: document.getElementById("formError"),
+      btnSave: document.getElementById("btnSave"),
+      btnReset: document.getElementById("btnReset"),
+      btnRefresh: document.getElementById("btnRefresh"),
+      list: document.getElementById("list"),
+      listStatus: document.getElementById("listStatus")
+    };
+
+    let auth, db, storage;
+    let editingImageUrl = "";
+    let editingImagePath = "";
+
+    function guessBrand(name) {
+      const n = String(name || "").trim().toUpperCase();
+      if (n.startsWith("COLORSILK")) return "COLORSILK";
+      if (n.startsWith("ECOCO") || n === "ECO") return "ECOCO";
+      if (n.startsWith("FANTASIA")) return "FANTASIA";
+      if (n.startsWith("YARDLEY")) return "YARDLEY";
+      if (n.startsWith("GIL ") || n.startsWith("GILL") || n === "GILLETTE") return "GILLETTE";
+      return n.split(/\s+/)[0] || "";
+    }
+
+    function resetForm() {
+      els.editId.value = "";
+      els.name.value = "";
+      els.brand.value = "";
+      els.price.value = "0";
+      els.stock.value = "0";
+      els.image.value = "";
+      editingImageUrl = "";
+      editingImagePath = "";
+      els.currentImageHint.textContent = "";
+      els.formError.textContent = "";
+    }
+
+    function fillForm(p) {
+      els.editId.value = p.id;
+      els.name.value = p.name || "";
+      els.brand.value = p.brand || "";
+      els.price.value = String(p.price ?? 0);
+      els.stock.value = String(p.stock ?? 0);
+      els.image.value = "";
+      editingImageUrl = p.imageUrl || "";
+      editingImagePath = p.imagePath || "";
+      els.currentImageHint.textContent = editingImageUrl ? "현재 이미지 유지 (새 파일을 고르면 교체)" : "이미지 없음";
+      els.formError.textContent = "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function loadList() {
+      els.listStatus.textContent = "Loading...";
+      const snap = await db.collection(COLLECTION).get();
+      const items = [];
+      snap.forEach((doc) => items.push({ id: doc.id, ...doc.data() }));
+      items.sort((a, b) => String(a.brand || "").localeCompare(String(b.brand || "")) || String(a.name || "").localeCompare(String(b.name || "")));
+      els.listStatus.textContent = `${items.length} products`;
+      els.list.innerHTML = items.map((p) => `
+        <div class="item">
+          ${p.imageUrl ? `<img src="${p.imageUrl}" alt="" />` : `<div style="width:64px;height:64px;background:#eee;border-radius:8px;"></div>`}
+          <div>
+            <strong>${escapeHtml(p.name || "")}</strong>
+            <div class="muted">${escapeHtml(p.brand || "")} · $${Number(p.price || 0).toFixed(2)} · stock ${Number(p.stock || 0)}</div>
+          </div>
+          <div class="btns">
+            <button type="button" class="secondary" data-edit="${p.id}">Edit</button>
+            <button type="button" class="danger" data-del="${p.id}">Del</button>
+          </div>
+        </div>
+      `).join("") || `<p class="muted">아직 상품이 없습니다. 위에서 추가하세요.</p>`;
+
+      const byId = new Map(items.map((p) => [p.id, p]));
+      els.list.querySelectorAll("[data-edit]").forEach((btn) => {
+        btn.addEventListener("click", () => fillForm(byId.get(btn.getAttribute("data-edit"))));
+      });
+      els.list.querySelectorAll("[data-del]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-del");
+          const p = byId.get(id);
+          if (!confirm(`삭제할까요?\n${p && p.name}`)) return;
+          try {
+            if (p && p.imagePath) {
+              try { await storage.ref(p.imagePath).delete(); } catch (_) { /* ignore */ }
+            }
+            await db.collection(COLLECTION).doc(id).delete();
+            await loadList();
+          } catch (err) {
+            alert(err.message || String(err));
+          }
+        });
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    async function saveProduct() {
+      const name = els.name.value.trim();
+      if (!name) {
+        els.formError.textContent = "상품 이름을 입력하세요.";
+        return;
+      }
+      els.formError.textContent = "";
+      els.btnSave.disabled = true;
+      try {
+        const brand = els.brand.value.trim() || guessBrand(name);
+        const price = Number(els.price.value) || 0;
+        const stock = Number(els.stock.value) || 0;
+        const editId = els.editId.value.trim();
+        const docRef = editId
+          ? db.collection(COLLECTION).doc(editId)
+          : db.collection(COLLECTION).doc();
+
+        let imageUrl = editingImageUrl;
+        let imagePath = editingImagePath;
+        const file = els.image.files && els.image.files[0];
+        if (file) {
+          const safeName = file.name.replace(/[^\w.\-()+ ]+/g, "_");
+          imagePath = `${PREFIX}/${docRef.id}/${Date.now()}_${safeName}`;
+          const ref = storage.ref(imagePath);
+          await ref.put(file);
+          imageUrl = await ref.getDownloadURL();
+        }
+
+        await docRef.set({
+          name,
+          brand,
+          price,
+          stock,
+          imageUrl: imageUrl || "",
+          imagePath: imagePath || "",
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        resetForm();
+        await loadList();
+      } catch (err) {
+        els.formError.textContent = err.message || String(err);
+      } finally {
+        els.btnSave.disabled = false;
+      }
+    }
+
+    function showLoggedIn() {
+      els.loginCard.classList.add("hidden");
+      els.adminShell.classList.remove("hidden");
+      els.btnLogout.classList.remove("hidden");
+      loadList().catch((err) => {
+        els.listStatus.textContent = err.message || String(err);
+      });
+    }
+
+    function showLoggedOut() {
+      els.loginCard.classList.remove("hidden");
+      els.adminShell.classList.add("hidden");
+      els.btnLogout.classList.add("hidden");
+      resetForm();
+    }
+
+    const fb = window.FIREBASE_CONFIG || {};
+    if (!fb.apiKey || !window.firebase) {
+      els.loginError.textContent = "firebase-config.js / SDK를 확인하세요.";
+    } else {
+      firebase.initializeApp(fb);
+      auth = firebase.auth();
+      db = firebase.firestore();
+      storage = firebase.storage();
+
+      els.btnLogin.addEventListener("click", async () => {
+        els.loginError.textContent = "";
+        try {
+          await auth.signInWithEmailAndPassword(els.email.value.trim(), els.password.value);
+        } catch (err) {
+          els.loginError.textContent = err.message || String(err);
+        }
+      });
+      els.password.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") els.btnLogin.click();
+      });
+      els.btnLogout.addEventListener("click", () => auth.signOut());
+      els.btnSave.addEventListener("click", saveProduct);
+      els.btnReset.addEventListener("click", resetForm);
+      els.btnRefresh.addEventListener("click", () => loadList());
+
+      auth.onAuthStateChanged((user) => {
+        if (user) showLoggedIn();
+        else showLoggedOut();
+      });
+    }
+  </script>
+</body>
+</html>
