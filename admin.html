@@ -312,10 +312,24 @@
       }
     }
 
-    function showLoggedIn() {
+    function isAdminUser(user) {
+      const email = String((user && user.email) || "").trim().toLowerCase();
+      const list = (window.FIREBASE_ADMIN_EMAILS || []).map((e) => String(e).trim().toLowerCase());
+      return Boolean(email && list.includes(email));
+    }
+
+    function showLoggedIn(user) {
+      els.btnLogout.classList.remove("hidden");
+      if (!isAdminUser(user)) {
+        els.loginCard.classList.remove("hidden");
+        els.adminShell.classList.add("hidden");
+        els.loginError.textContent = "관리자만 접근할 수 있습니다. (FIREBASE_ADMIN_EMAILS에 등록된 계정)";
+        auth.signOut();
+        return;
+      }
+      els.loginError.textContent = "";
       els.loginCard.classList.add("hidden");
       els.adminShell.classList.remove("hidden");
-      els.btnLogout.classList.remove("hidden");
       loadList().catch((err) => {
         els.listStatus.textContent = err.message || String(err);
       });
@@ -354,7 +368,7 @@
       els.btnRefresh.addEventListener("click", () => loadList());
 
       auth.onAuthStateChanged((user) => {
-        if (user) showLoggedIn();
+        if (user) showLoggedIn(user);
         else showLoggedOut();
       });
     }

@@ -1,10 +1,21 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // firebase-config.js 의 FIREBASE_ADMIN_EMAILS 와 동일하게 유지하세요
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in [
+          'bruceryu77@gmail.com'
+        ];
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     match /products/{productId} {
-      allow read: if request.auth != null;
-      // 당분간 로그인 사용자 쓰기 허용 (나중에 admin만으로 좁히세요)
-      allow write: if request.auth != null;
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
   }
 }

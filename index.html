@@ -548,7 +548,7 @@
       <h1>Product Order</h1>
       <div class="auth-meta">
         <div class="auth-user" id="authUserLabel"></div>
-        <a href="admin.html" class="btn-secondary btn-sm" style="text-decoration:none;display:inline-flex;align-items:center;">Admin</a>
+        <a href="admin.html" id="btnAdminLink" class="btn-secondary btn-sm" style="text-decoration:none;align-items:center;display:none;">Admin</a>
         <button type="button" class="btn-secondary btn-sm" id="btnLogout">Logout</button>
       </div>
     </header>
@@ -653,7 +653,8 @@
       btnLogin: document.getElementById("btnLogin"),
       btnSignup: document.getElementById("btnSignup"),
       btnLogout: document.getElementById("btnLogout"),
-      authUserLabel: document.getElementById("authUserLabel")
+      authUserLabel: document.getElementById("authUserLabel"),
+      btnAdminLink: document.getElementById("btnAdminLink")
     };
 
     let appStarted = false;
@@ -1282,10 +1283,19 @@
       dataTimer = setInterval(refreshDataQuiet, DATA_REFRESH_MS);
     }
 
+    function isAdminUser(user) {
+      const email = String((user && user.email) || "").trim().toLowerCase();
+      const list = (window.FIREBASE_ADMIN_EMAILS || []).map((e) => String(e).trim().toLowerCase());
+      return Boolean(email && list.includes(email));
+    }
+
     function showLoggedIn(user) {
       els.authGate.classList.add("hidden");
       els.appShell.classList.remove("hidden");
       els.authUserLabel.textContent = user.email || user.uid;
+      if (els.btnAdminLink) {
+        els.btnAdminLink.style.display = isAdminUser(user) ? "inline-flex" : "none";
+      }
       startApp();
     }
 

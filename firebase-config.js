@@ -7,8 +7,9 @@
  * 4) Storage 사용 설정
  * 5) 프로젝트 설정 → 일반 → 웹 앱 설정값을 아래에 붙여넣기
  * 6) Authentication → Users 에서 회원 추가
- * 7) firestore.rules / storage.rules 내용을 Console Rules에 붙여넣기
- * 8) 상품 등록은 admin.html 또는 Firebase Console 에서
+ * 7) firestore.rules / storage.rules 내용을 Console Rules에 붙여넣기 (관리자 이메일 목록 포함)
+ * 8) firebase-config.js 의 FIREBASE_ADMIN_EMAILS 에 관리자 이메일 지정
+ * 9) 상품 등록은 admin.html (관리자만) 또는 Firebase Console 에서
  *
  * 참고: 로그인은 이메일 형식 필요 (예: member01@amor.local)
  */
@@ -23,3 +24,12 @@ window.FIREBASE_CONFIG = {
 
 /** false면 앱에서 회원가입 버튼을 숨기고, Firebase 콘솔에서만 회원 추가 */
 window.FIREBASE_ALLOW_SIGNUP = false;
+
+/**
+ * 상품 등록/수정(admin.html) 가능한 관리자 이메일.
+ * Authentication → Users 에 있는 이메일과 정확히 같아야 합니다.
+ * firestore.rules / storage.rules 의 목록과도 반드시 같게 맞춘 뒤 Console에 Publish 하세요.
+ */
+window.FIREBASE_ADMIN_EMAILS = [
+  "bruceryu77@gmail.com"
+];
