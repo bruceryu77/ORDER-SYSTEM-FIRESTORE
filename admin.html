@@ -601,6 +601,7 @@
       if (!trimmed) return;
 
       if (scanTarget === "search") {
+        // 목록 검색용: 검색창에 넣고 상품 필터 (+ 일치하면 수정 폼)
         els.searchInput.value = trimmed;
         applySearch();
         const hit = findByUpc(trimmed);
@@ -608,18 +609,9 @@
         return;
       }
 
-      // Default: fill UPC field; open matching product if exists
+      // 상품 추가/수정용: UPC 입력란만 채움 (검색·폼 로드 안 함)
       els.upc.value = trimmed;
-      els.searchInput.value = trimmed;
-      applySearch();
-      const hit = findByUpc(trimmed);
-      if (hit) {
-        fillForm(hit);
-        els.formError.textContent = "";
-      } else {
-        // keep current form fields, just set UPC for new/edit
-        els.formError.textContent = "일치하는 UPC 상품 없음 — 새 상품으로 UPC만 채웠습니다.";
-      }
+      els.formError.textContent = "";
     }
 
     /* ---------- Camera scan (ULTRA ORDER barcode upgrade) ---------- */
