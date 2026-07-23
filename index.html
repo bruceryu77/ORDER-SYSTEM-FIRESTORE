@@ -266,8 +266,9 @@
       tbody { display: grid; }
       tbody tr {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        column-gap: 18px;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+        column-gap: 12px;
+        align-items: end;
         padding: 16px 12px;
         border-bottom: 1px solid var(--line);
       }
@@ -301,7 +302,7 @@
       td.mobile-detail {
         display: grid;
         gap: 3px;
-        padding: 9px 0;
+        padding: 9px 0 0;
         border-top: 1px solid #eee8df;
         font-size: 1rem;
       }
@@ -314,25 +315,16 @@
         text-transform: uppercase;
       }
       td.qty-cell {
-        grid-column: 1 / -1;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        padding-top: 12px;
+        align-items: flex-end;
+        justify-content: flex-end;
+        padding-top: 9px;
         border-top: 1px solid #eee8df;
       }
-      td.qty-cell::before {
-        content: attr(data-label);
-        color: var(--muted);
-        font-size: 0.74rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-      }
+      td.qty-cell::before { content: none; }
       input.qty {
-        width: 110px;
-        min-height: 44px;
+        width: 72px;
+        min-height: 40px;
         font-size: 1rem;
       }
     }
@@ -590,7 +582,6 @@
           <div class="status-line" id="statusLine">Ready</div>
           <p class="filter-label">Search product code / name (all brands)</p>
           <input type="search" id="search" placeholder="e.g. Colorsilk, Black, Gel, Venus" autocomplete="off" />
-          <p class="note" id="searchHint">검색하거나 아래 브랜드를 선택하세요.</p>
           <p class="filter-label">Or browse by brand</p>
           <div class="chips" id="brandChips" role="tablist" aria-label="Brand"></div>
         </div>
@@ -913,7 +904,7 @@
           </td>
           <td class="price mobile-detail" data-label="Price">${money(p.price)}</td>
           <td class="stock mobile-detail ${stockClass}" data-label="Stock">${p.stock <= 0 ? "0 (Out of stock)" : p.stock}</td>
-          <td class="qty-cell" data-label="Order Qty">
+          <td class="qty-cell">
             <input class="qty" type="number" min="0" step="1" value="${qty}"
               data-key="${escapeHtml(productKey(p))}" inputmode="numeric"
               aria-label="${escapeHtml(p.name)} quantity" />
