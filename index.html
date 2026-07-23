@@ -91,12 +91,7 @@
     }
     .note { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.4; }
     .status-line {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      font-size: 0.84rem;
-      color: var(--muted);
+      display: none;
     }
     .status-line .ok { color: var(--accent); font-weight: 600; }
     .status-line .err { color: var(--warn); font-weight: 600; }
@@ -479,6 +474,35 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    #btnAdminLink.admin-link {
+      text-decoration: none;
+      align-items: center;
+      display: none;
+      background: var(--accent);
+      color: #f7faf8;
+      border: 1px solid var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      animation: adminPulse 1.6s ease-in-out infinite;
+    }
+    #btnAdminLink.admin-link:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      animation: none;
+      transform: scale(1.04);
+    }
+    @keyframes adminPulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(15, 107, 76, 0.45);
+      }
+      50% {
+        transform: scale(1.06);
+        box-shadow: 0 0 0 8px rgba(15, 107, 76, 0);
+      }
     }
 
     .sheet-backdrop {
@@ -544,11 +568,10 @@
 
   <div class="wrap app-shell hidden" id="appShell">
     <header>
-      <div class="eyebrow">Firestore · Storage · Auth</div>
       <h1>Product Order</h1>
       <div class="auth-meta">
         <div class="auth-user" id="authUserLabel"></div>
-        <a href="admin.html" id="btnAdminLink" class="btn-secondary btn-sm" style="text-decoration:none;align-items:center;display:none;">Admin</a>
+        <a href="admin.html" id="btnAdminLink" class="btn-secondary btn-sm admin-link">Admin</a>
         <button type="button" class="btn-secondary btn-sm" id="btnLogout">Logout</button>
       </div>
     </header>
