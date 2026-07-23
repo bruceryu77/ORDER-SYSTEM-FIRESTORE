@@ -800,6 +800,7 @@
         stock: Number(d.stock) || 0,
         imageUrl: String(d.imageUrl || "").trim(),
         sortOrder: Number(d.sortOrder) || index
+        // upc is admin-only — intentionally omitted from the order app
       };
     }
 

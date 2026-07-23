@@ -10,6 +10,7 @@
  * 7) firestore.rules / storage.rules 내용을 Console Rules에 붙여넣기 (관리자 이메일 목록 포함)
  * 8) firebase-config.js 의 FIREBASE_ADMIN_EMAILS 에 관리자 이메일 지정
  * 9) 상품 등록은 admin.html (관리자만) 또는 Firebase Console 에서
+ * 10) Sheet CSV 일괄 이전은 migrate.html (관리자만)
  *
  * 참고: 로그인은 이메일 형식 필요 (예: member01@amor.local)
  */

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sheet → Firestore Migrate</title>
+  <style>
+    :root {
+      --ink: #1c1914;
+      --card: #fffdf8;
+      --line: #d9d0c2;
+      --accent: #0f6b4c;
+      --danger: #a12828;
+      --warn: #8a5a00;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: linear-gradient(160deg, #efe8da, #f7f3ea 45%, #e7f0ea);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { margin: 0 0 8px; font-size: 1.55rem; }
+    .sub { color: #5c564c; margin: 0 0 18px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    label { display: grid; gap: 6px; font-size: 0.9rem; margin-top: 10px; }
+    input, button, select, textarea {
+      font: inherit;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+    }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.secondary { background: #3f3a33; }
+    button.danger { background: var(--danger); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    .error { color: var(--danger); min-height: 1.2em; }
+    .ok { color: var(--accent); }
+    .muted { color: #6b6458; font-size: 0.88rem; }
+    .hidden { display: none !important; }
+    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .checks { display: grid; gap: 8px; margin-top: 12px; }
+    .checks label { display: flex; gap: 8px; align-items: center; margin: 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: left; vertical-align: top; }
+    th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: #6b6458; }
+    .preview-wrap { max-height: 420px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    .stat { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+    .stat span {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.85rem;
+    }
+    code { background: #f0ebe2; padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1>Sheet → Firestore</h1>
+        <p class="sub">Google Sheet CSV를 올려 <code>products</code> 컬렉션으로 일괄 이전 (관리자 전용)</p>
+      </div>
+      <div class="btns">
+        <a href="admin.html" style="align-self:center;color:var(--accent);">← Admin</a>
+        <a href="index.html" style="align-self:center;color:var(--accent);">주문 앱</a>
+        <button type="button" class="secondary hidden" id="btnLogout">Logout</button>
+      </div>
+    </div>
+
+    <div class="card" id="loginCard">
+      <label>ID (이메일)
+        <input type="email" id="email" autocomplete="username" placeholder="bruceryu77@gmail.com" />
+      </label>
+      <label>Password
+        <input type="password" id="password" autocomplete="current-password" />
+      </label>
+      <p class="error" id="loginError"></p>
+      <button type="button" id="btnLogin" style="margin-top:8px;width:100%;">Login</button>
+    </div>
+
+    <div id="migrateShell" class="hidden">
+      <div class="card">
+        <h2 style="margin:0 0 8px;font-size:1.1rem;">1) Sheet CSV 준비</h2>
+        <ol class="muted" style="margin:0;padding-left:18px;line-height:1.55;">
+          <li>Google Sheet 열기 → <strong>파일 → 다운로드 → 쉼표로 구분된 값(.csv)</strong></li>
+          <li>열 순서: <code>name, brand, price, stock, UPC</code></li>
+          <li>헤더 행이 있으면 자동으로 인식합니다. brand가 비어 있으면 이름/구역 헤더에서 추정합니다.</li>
+          <li>예전 형식(<code>name, PRICE, STOCK[, UPC]</code> + 브랜드 구역 헤더)도 지원합니다.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2 style="margin:0 0 8px;font-size:1.1rem;">2) CSV 업로드 &amp; 미리보기</h2>
+        <label>CSV 파일
+          <input type="file" id="csvFile" accept=".csv,text/csv" />
+        </label>
+        <div class="checks">
+          <label>
+            <input type="checkbox" id="optUpsert" checked />
+            같은 brand+name 이 있으면 가격/재고/UPC만 갱신 (기존 이미지 유지)
+          </label>
+          <label>
+            <input type="checkbox" id="optSkipHeader" checked />
+            첫 행이 PRICE/STOCK 헤더면 자동 건너뛰기
+          </label>
+          <label style="color:var(--danger);">
+            <input type="checkbox" id="optClearFirst" />
+            이전 전에 Firestore <code>products</code> 전체를 삭제 (되돌릴 수 없음)
+          </label>
+        </div>
+        <div class="stat" id="previewStats"></div>
+        <p class="error" id="parseError"></p>
+        <div class="preview-wrap hidden" id="previewWrap" style="margin-top:12px;">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Brand</th><th>Name</th><th>Price</th><th>Stock</th><th>UPC</th></tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="margin:0 0 8px;font-size:1.1rem;">3) Firestore에 쓰기</h2>
+        <p class="muted">이미지는 CSV에 없습니다. 상품만 이전되고, 사진은 이후 Admin에서 올리면 됩니다.</p>
+        <div class="btns" style="margin-top:10px;">
+          <button type="button" id="btnMigrate" disabled>Import to Firestore</button>
+        </div>
+        <p class="error" id="migrateError"></p>
+        <p class="ok" id="migrateOk"></p>
+        <pre class="muted" id="migrateLog" style="white-space:pre-wrap;margin:8px 0 0;"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="config.js"></script>
+  <script>
+    const CFG = window.APP_CONFIG || {};
+    const COLLECTION = CFG.PRODUCTS_COLLECTION || "products";
+
+    const els = {
+      loginCard: document.getElementById("loginCard"),
+      migrateShell: document.getElementById("migrateShell"),
+      email: document.getElementById("email"),
+      password: document.getElementById("password"),
+      loginError: document.getElementById("loginError"),
+      btnLogin: document.getElementById("btnLogin"),
+      btnLogout: document.getElementById("btnLogout"),
+      csvFile: document.getElementById("csvFile"),
+      optUpsert: document.getElementById("optUpsert"),
+      optSkipHeader: document.getElementById("optSkipHeader"),
+      optClearFirst: document.getElementById("optClearFirst"),
+      previewStats: document.getElementById("previewStats"),
+      parseError: document.getElementById("parseError"),
+      previewWrap: document.getElementById("previewWrap"),
+      previewBody: document.getElementById("previewBody"),
+      btnMigrate: document.getElementById("btnMigrate"),
+      migrateError: document.getElementById("migrateError"),
+      migrateOk: document.getElementById("migrateOk"),
+      migrateLog: document.getElementById("migrateLog")
+    };
+
+    let auth, db;
+    /** @type {Array<{brand:string,name:string,price:number,stock:number,code:string,upc:string}>} */
+    let parsedProducts = [];
+
+    function isAdminUser(user) {
+      const email = String((user && user.email) || "").trim().toLowerCase();
+      const list = (window.FIREBASE_ADMIN_EMAILS || []).map((e) => String(e).trim().toLowerCase());
+      return Boolean(email && list.includes(email));
+    }
+
+    function extractCode(itemName) {
+      const full = String(itemName || "").trim();
+      let m = full.match(/^COLORSILK\s*#?\s*(\d+[A-Z]*)\b/i);
+      if (m) return m[1];
+      m = full.match(/^(COLORSILK|ECOCO|FANTASIA|YARDLEY|GIL(?:L)?)\s+(.+)$/i);
+      if (m) {
+        const rest = m[2].trim();
+        const m2 = rest.match(/^#?\s*(\d+[A-Z]*)\s+/i);
+        if (m2) return m2[1];
+        return rest.slice(0, 28);
+      }
+      return full.slice(0, 28);
+    }
+
+    function brandOf(name) {
+      const n = String(name || "").trim().toUpperCase();
+      if (n.startsWith("COLORSILK")) return "COLORSILK";
+      if (n.startsWith("ECOCO") || n === "ECO") return "ECOCO";
+      if (n.startsWith("FANTASIA")) return "FANTASIA";
+      if (n.startsWith("YARDLEY")) return "YARDLEY";
+      if (n.startsWith("GIL ") || n.startsWith("GILL") || n === "GILLETTE") return "GILLETTE";
+      return null;
+    }
+
+    function brandDisplayName(headerName) {
+      const mapped = brandOf(headerName);
+      if (mapped) return mapped;
+      return String(headerName || "").trim().toUpperCase().replace(/\s+/g, " ");
+    }
+
+    function isSectionHeaderRow(name, price, stock) {
+      const n = String(name || "").trim();
+      if (!n) return false;
+      const p = String(price ?? "").trim();
+      const s = String(stock ?? "").trim();
+      if (p.toUpperCase() === "PRICE" || s.toUpperCase() === "STOCK") return true;
+      if (p === "" && s === "") return true;
+      return false;
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let inQuotes = false;
+      const src = String(text || "").replace(/^\uFEFF/, "");
+
+      for (let i = 0; i < src.length; i++) {
+        const ch = src[i];
+        const next = src[i + 1];
+        if (inQuotes) {
+          if (ch === '"' && next === '"') {
+            cell += '"';
+            i++;
+          } else if (ch === '"') {
+            inQuotes = false;
+          } else {
+            cell += ch;
+          }
+          continue;
+        }
+        if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === ",") {
+          row.push(cell);
+          cell = "";
+        } else if (ch === "\n") {
+          row.push(cell);
+          rows.push(row);
+          row = [];
+          cell = "";
+        } else if (ch === "\r") {
+          /* skip */
+        } else {
+          cell += ch;
+        }
+      }
+      if (cell.length || row.length) {
+        row.push(cell);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function catalogFromRows(rows, skipHeader) {
+      const out = [];
+      const seen = new Set();
+      let currentBrand = null;
+      let start = 0;
+      let col = { name: 0, brand: -1, price: 1, stock: 2, upc: 3 };
+
+      if (rows.length) {
+        const header = (rows[0] || []).map((c) => String(c || "").trim().toUpperCase());
+        const hasName = header.some((h) => h === "NAME" || h.includes("DESCRIPTION") || h === "ITEM");
+        const hasPrice = header.includes("PRICE");
+        const hasStock = header.includes("STOCK");
+        const hasBrand = header.includes("BRAND");
+        const hasUpc = header.includes("UPC") || header.includes("BARCODE");
+        if (skipHeader && (hasPrice || hasStock || hasName || hasBrand || hasUpc)) {
+          start = 1;
+          const idx = (names) => {
+            for (const n of names) {
+              const i = header.indexOf(n);
+              if (i >= 0) return i;
+            }
+            return -1;
+          };
+          const nameIdx = idx(["NAME", "ITEM", "DESCRIPTION", "PRODUCT"]);
+          const brandIdx = idx(["BRAND"]);
+          const priceIdx = idx(["PRICE"]);
+          const stockIdx = idx(["STOCK"]);
+          const upcIdx = idx(["UPC", "BARCODE"]);
+          if (nameIdx >= 0) col.name = nameIdx;
+          if (brandIdx >= 0) col.brand = brandIdx;
+          if (priceIdx >= 0) col.price = priceIdx;
+          if (stockIdx >= 0) col.stock = stockIdx;
+          if (upcIdx >= 0) col.upc = upcIdx;
+          else if (!hasUpc && header.length <= 4) col.upc = Math.max(col.stock + 1, 3);
+        }
+      }
+
+      for (let i = start; i < rows.length; i++) {
+        const row = rows[i] || [];
+        const name = String(row[col.name] ?? "").trim();
+        if (!name) continue;
+        const brandCell = col.brand >= 0 ? String(row[col.brand] ?? "").trim() : "";
+        const priceRaw = row[col.price];
+        const stockRaw = row[col.stock];
+        const upcRaw = col.upc >= 0 ? row[col.upc] : "";
+
+        if (isSectionHeaderRow(name, priceRaw, stockRaw)) {
+          currentBrand = brandDisplayName(name);
+          continue;
+        }
+
+        const brand = brandCell || brandOf(name) || currentBrand || name.split(/\s+/)[0].toUpperCase();
+        const dedupe = `${brand}::${name}`.toUpperCase();
+        if (seen.has(dedupe)) continue;
+        seen.add(dedupe);
+        out.push({
+          brand,
+          name,
+          code: extractCode(name),
+          price: Number(String(priceRaw ?? "").replace(/[^0-9.-]/g, "")) || 0,
+          stock: Number(String(stockRaw ?? "").replace(/[^0-9.-]/g, "")) || 0,
+          upc: String(upcRaw ?? "").trim()
+        });
+      }
+      return out;
+    }
+
+    function productDocId(brand, name) {
+      const raw = `${brand}__${name}`.toUpperCase().replace(/[\/]+/g, "-");
+      return raw.slice(0, 700) || "ITEM";
+    }
+
+    function productKey(p) {
+      return `${p.brand || ""}::${p.name || ""}`.toUpperCase();
+    }
+
+    function renderPreview(list) {
+      parsedProducts = list;
+      els.parseError.textContent = "";
+      els.migrateError.textContent = "";
+      els.migrateOk.textContent = "";
+      els.migrateLog.textContent = "";
+
+      if (!list.length) {
+        els.previewWrap.classList.add("hidden");
+        els.previewStats.innerHTML = "";
+        els.btnMigrate.disabled = true;
+        els.parseError.textContent = "상품 행을 찾지 못했습니다. CSV 열(name, brand, price, stock, UPC)을 확인하세요.";
+        return;
+      }
+
+      const brands = new Set(list.map((p) => p.brand));
+      els.previewStats.innerHTML = `
+        <span>${list.length} items</span>
+        <span>${brands.size} brands</span>
+      `;
+      els.previewBody.innerHTML = list.slice(0, 300).map((p, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escapeHtml(p.brand)}</td>
+          <td>${escapeHtml(p.name)}</td>
+          <td>${Number(p.price).toFixed(2)}</td>
+          <td>${p.stock}</td>
+          <td>${escapeHtml(p.upc || "")}</td>
+        </tr>
+      `).join("") + (list.length > 300
+        ? `<tr><td colspan="6" class="muted">… 외 ${list.length - 300}개 (미리보기 생략, 가져오기에는 전부 포함)</td></tr>`
+        : "");
+      els.previewWrap.classList.remove("hidden");
+      els.btnMigrate.disabled = false;
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function logLine(msg) {
+      els.migrateLog.textContent += msg + "\n";
+    }
+
+    async function readCsvFile(file) {
+      const buf = await file.arrayBuffer();
+      let text = new TextDecoder("utf-8").decode(buf);
+      if (text.includes("\uFFFD")) {
+        text = new TextDecoder("utf-16le").decode(buf);
+      }
+      return text;
+    }
+
+    async function clearProductsCollection() {
+      const snap = await db.collection(COLLECTION).get();
+      let batch = db.batch();
+      let n = 0;
+      let total = 0;
+      for (const doc of snap.docs) {
+        batch.delete(doc.ref);
+        n++;
+        total++;
+        if (n >= 400) {
+          await batch.commit();
+          batch = db.batch();
+          n = 0;
+          logLine(`Deleted ${total} docs...`);
+        }
+      }
+      if (n) await batch.commit();
+      return total;
+    }
+
+    async function loadExistingMap() {
+      const snap = await db.collection(COLLECTION).get();
+      const byKey = new Map();
+      snap.forEach((doc) => {
+        const d = doc.data() || {};
+        const brand = String(d.brand || "").trim();
+        const name = String(d.name || "").trim();
+        if (!name) return;
+        byKey.set(`${brand}::${name}`.toUpperCase(), { id: doc.id, data: d });
+      });
+      return byKey;
+    }
+
+    async function migrateToFirestore() {
+      if (!parsedProducts.length) return;
+      els.migrateError.textContent = "";
+      els.migrateOk.textContent = "";
+      els.migrateLog.textContent = "";
+      els.btnMigrate.disabled = true;
+
+      try {
+        if (els.optClearFirst.checked) {
+          const ok = confirm("Firestore products 컬렉션을 모두 삭제한 뒤 CSV로 다시 넣습니다. 계속할까요?");
+          if (!ok) {
+            els.btnMigrate.disabled = false;
+            return;
+          }
+          logLine("Clearing existing products...");
+          const deleted = await clearProductsCollection();
+          logLine(`Deleted ${deleted} documents.`);
+        }
+
+        const upsert = els.optUpsert.checked;
+        const existing = upsert ? await loadExistingMap() : new Map();
+        logLine(`Existing products loaded: ${existing.size}`);
+
+        let created = 0;
+        let updated = 0;
+        let batch = db.batch();
+        let ops = 0;
+
+        const commitBatch = async () => {
+          if (!ops) return;
+          await batch.commit();
+          batch = db.batch();
+          ops = 0;
+        };
+
+        for (let i = 0; i < parsedProducts.length; i++) {
+          const p = parsedProducts[i];
+          const key = productKey(p);
+          const prev = existing.get(key);
+          const payload = {
+            name: p.name,
+            brand: p.brand,
+            code: p.code,
+            price: p.price,
+            stock: p.stock,
+            upc: p.upc || "",
+            sortOrder: i,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            migratedFrom: "sheet-csv"
+          };
+
+          if (prev) {
+            // keep images
+            payload.imageUrl = prev.data.imageUrl || "";
+            payload.imagePath = prev.data.imagePath || "";
+            batch.set(db.collection(COLLECTION).doc(prev.id), payload, { merge: true });
+            updated++;
+          } else {
+            const id = productDocId(p.brand, p.name);
+            payload.imageUrl = "";
+            payload.imagePath = "";
+            batch.set(db.collection(COLLECTION).doc(id), payload, { merge: true });
+            created++;
+          }
+
+          ops++;
+          if (ops >= 400) {
+            await commitBatch();
+            logLine(`Progress: ${i + 1}/${parsedProducts.length}`);
+          }
+        }
+        await commitBatch();
+
+        els.migrateOk.textContent = `완료: 신규 ${created} · 갱신 ${updated} · 총 ${parsedProducts.length}`;
+        logLine("Done.");
+      } catch (err) {
+        console.error(err);
+        els.migrateError.textContent = err.message || String(err);
+      } finally {
+        els.btnMigrate.disabled = !parsedProducts.length;
+      }
+    }
+
+    function showLoggedIn(user) {
+      els.btnLogout.classList.remove("hidden");
+      if (!isAdminUser(user)) {
+        els.loginCard.classList.remove("hidden");
+        els.migrateShell.classList.add("hidden");
+        els.loginError.textContent = "관리자만 접근할 수 있습니다.";
+        auth.signOut();
+        return;
+      }
+      els.loginError.textContent = "";
+      els.loginCard.classList.add("hidden");
+      els.migrateShell.classList.remove("hidden");
+    }
+
+    function showLoggedOut() {
+      els.loginCard.classList.remove("hidden");
+      els.migrateShell.classList.add("hidden");
+      els.btnLogout.classList.add("hidden");
+    }
+
+    els.csvFile.addEventListener("change", async () => {
+      const file = els.csvFile.files && els.csvFile.files[0];
+      if (!file) return;
+      els.parseError.textContent = "";
+      try {
+        const text = await readCsvFile(file);
+        const rows = parseCsv(text);
+        const list = catalogFromRows(rows, els.optSkipHeader.checked);
+        renderPreview(list);
+      } catch (err) {
+        parsedProducts = [];
+        els.btnMigrate.disabled = true;
+        els.parseError.textContent = err.message || String(err);
+      }
+    });
+
+    els.btnMigrate.addEventListener("click", migrateToFirestore);
+
+    const fb = window.FIREBASE_CONFIG || {};
+    if (!fb.apiKey || !window.firebase) {
+      els.loginError.textContent = "firebase-config.js / SDK를 확인하세요.";
+    } else {
+      firebase.initializeApp(fb);
+      auth = firebase.auth();
+      db = firebase.firestore();
+
+      els.btnLogin.addEventListener("click", async () => {
+        els.loginError.textContent = "";
+        try {
+          await auth.signInWithEmailAndPassword(els.email.value.trim(), els.password.value);
+        } catch (err) {
+          els.loginError.textContent = err.message || String(err);
+        }
+      });
+      els.password.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") els.btnLogin.click();
+      });
+      els.btnLogout.addEventListener("click", () => auth.signOut());
+      auth.onAuthStateChanged((user) => {
+        if (user) showLoggedIn(user);
+        else showLoggedOut();
+      });
+    }
+  </script>
+</body>
+</html>
