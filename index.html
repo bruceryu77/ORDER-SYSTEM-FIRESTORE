@@ -1223,7 +1223,7 @@
       const storeName = els.orderNote.value.trim();
       const lines = [];
       if (storeName) {
-        lines.push(storeName);
+        lines.push(`Store Name - ${storeName}`);
         lines.push("");
       }
       for (const [brand, list] of groups.entries()) {
@@ -1283,8 +1283,23 @@
     async function shareNative(text) {
       if (!navigator.share) return false;
       try {
-        const title = els.orderNote.value.trim() || "Product Order";
-        await navigator.share({ title, text });
+        const storeName = els.orderNote.value.trim();
+        const title = storeName ? `Store Name - ${storeName}` : "Product Order";
+        // Kakao often shows "title-text"; avoid repeating store name in both.
+        let body = text;
+        const prefixes = [
+          `Store Name - ${storeName}\n\n`,
+          `Store Name - ${storeName}\n`,
+          `${storeName}\n\n`,
+          `${storeName}\n`
+        ];
+        for (const p of prefixes) {
+          if (storeName && body.startsWith(p)) {
+            body = body.slice(p.length);
+            break;
+          }
+        }
+        await navigator.share({ title, text: body });
         return true;
       } catch (err) {
         if (err && err.name === "AbortError") return true;
