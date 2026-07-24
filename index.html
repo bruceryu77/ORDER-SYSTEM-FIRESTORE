@@ -91,6 +91,24 @@
       color: var(--muted);
     }
     .note { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.4; }
+    .brand-select {
+      width: 100%;
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 40px 11px 12px;
+      font: inherit;
+      background:
+        #fff
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%216b655c' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")
+        no-repeat right 14px center;
+      color: var(--ink);
+      cursor: pointer;
+    }
+    .brand-select:focus {
+      outline: 2px solid rgba(47, 93, 74, 0.35);
+      outline-offset: 1px;
+    }
     .status-line {
       display: none;
     }
@@ -744,8 +762,10 @@
           <p class="filter-label">Search product code / name (all brands)</p>
           <input type="search" id="search" placeholder="e.g. Colorsilk, Black, Gel, Venus" autocomplete="off" />
           <button type="button" class="btn-secondary" id="btnScanSearch" style="width:100%;">스캔 검색</button>
-          <p class="filter-label">Or browse by brand</p>
-          <div class="chips" id="brandChips" role="tablist" aria-label="Brand"></div>
+          <p class="filter-label">Browse by brand</p>
+          <select id="brandSelect" class="brand-select" aria-label="Brand">
+            <option value="">Select brand</option>
+          </select>
         </div>
 
         <div class="catalog" id="catalog">
@@ -837,7 +857,7 @@
 
     const els = {
       catalog: document.getElementById("catalog"),
-      brandChips: document.getElementById("brandChips"),
+      brandSelect: document.getElementById("brandSelect"),
       search: document.getElementById("search"),
       summary: document.getElementById("summary"),
       orderNote: document.getElementById("orderNote"),
@@ -1091,9 +1111,20 @@
     }
 
     function renderBrandChips() {
-      els.brandChips.innerHTML = brands.map((b) => `
-        <button type="button" class="chip ${state.brand === b ? "active" : ""}" data-brand="${escapeHtml(b)}">${escapeHtml(b)}</button>
-      `).join("");
+      if (!els.brandSelect) return;
+      const current = state.brand || "";
+      els.brandSelect.innerHTML = [
+        `<option value="">Select brand</option>`,
+        ...brands.map((b) =>
+          `<option value="${escapeHtml(b)}" ${current === b ? "selected" : ""}>${escapeHtml(b)}</option>`
+        )
+      ].join("");
+      // Keep selection if brand still exists; otherwise reset UI value
+      if (current && !brands.includes(current)) {
+        els.brandSelect.value = "";
+      } else {
+        els.brandSelect.value = current;
+      }
     }
 
     function renderOptionRow(p) {
@@ -1416,10 +1447,9 @@
       }
     }
 
-    els.brandChips.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-brand]");
-      if (!btn) return;
-      state.brand = btn.dataset.brand;
+    els.brandSelect.addEventListener("change", () => {
+      const value = els.brandSelect.value;
+      state.brand = value || null;
       els.search.value = "";
       refresh();
     });
