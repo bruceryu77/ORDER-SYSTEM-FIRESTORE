@@ -69,7 +69,7 @@
     .panel-sticky { position: sticky; top: 12px; }
     .panel-head {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
@@ -78,6 +78,7 @@
       background: #f7f2ea;
     }
     .panel-head h2 { margin: 0; font-size: 1rem; }
+    .panel-sticky .panel-head { justify-content: space-between; }
     .panel-body { padding: 14px 16px 18px; display: grid; gap: 12px; }
 
     .filters { padding: 14px 16px 0; display: grid; gap: 8px; }
@@ -497,6 +498,167 @@
       }
     }
 
+    /* Camera scan overlay (same as admin.html) */
+    #cameraOverlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: none;
+      flex-direction: column;
+      z-index: 1100;
+    }
+    .camera-container {
+      background: #000;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+    .camera-viewport {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      background: #000;
+    }
+    #cameraVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    #scanCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .scan-status {
+      position: absolute;
+      top: max(16px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(40, 40, 40, 0.85);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: 14px;
+      z-index: 12;
+      font-weight: 600;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+    .scan-status.detecting { background: rgba(40, 40, 40, 0.9); }
+    .scan-status.success { background: rgba(76, 175, 80, 0.95); color: #fff; }
+    .scan-tap-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .scan-tap-overlay.hidden { display: none; }
+    .scan-tap-btn {
+      background: rgba(50, 50, 50, 0.9);
+      color: #fff;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 28px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .scan-line {
+      position: absolute;
+      left: 10%;
+      width: 80%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #e53935, transparent);
+      box-shadow: 0 0 8px rgba(229, 57, 53, 0.6);
+      z-index: 11;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .scan-line.active {
+      opacity: 1;
+      animation: scanLineMove 2s ease-in-out infinite;
+    }
+    @keyframes scanLineMove {
+      0%, 100% { top: 25%; }
+      50% { top: 75%; }
+    }
+    .camera-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 20;
+      gap: 12px;
+    }
+    .cam-tool-btn {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 24px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .cam-tool-btn.active { background: rgba(255, 255, 255, 0.2); }
+    .cam-tool-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .zoom-toggle {
+      display: flex;
+      background: rgba(60, 60, 60, 0.8);
+      border-radius: 24px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .zoom-btn {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 0;
+    }
+    .zoom-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .zoom-btn.active {
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      border-radius: 20px;
+    }
+    .cam-close-btn {
+      background: rgba(80, 80, 80, 0.8);
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: auto;
+    }
+
     .sheet-backdrop {
       position: fixed;
       inset: 0;
@@ -571,7 +733,6 @@
     <div class="layout">
       <section class="panel">
         <div class="panel-head">
-          <h2>Products · Items</h2>
           <div class="btns">
             <button type="button" class="btn-secondary btn-sm" id="btnClearQty">Clear Qty</button>
             <button type="button" class="btn-secondary btn-sm" id="btnReload">Reload Firebase</button>
@@ -582,6 +743,7 @@
           <div class="status-line" id="statusLine">Ready</div>
           <p class="filter-label">Search product code / name (all brands)</p>
           <input type="search" id="search" placeholder="e.g. Colorsilk, Black, Gel, Venus" autocomplete="off" />
+          <button type="button" class="btn-secondary" id="btnScanSearch" style="width:100%;">스캔 검색</button>
           <p class="filter-label">Or browse by brand</p>
           <div class="chips" id="brandChips" role="tablist" aria-label="Brand"></div>
         </div>
@@ -624,6 +786,31 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <div id="cameraOverlay">
+    <div class="camera-container">
+      <div class="camera-viewport">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="scanCanvas"></canvas>
+        <div class="scan-line" id="scanLine"></div>
+        <div class="scan-status scanning" id="scanStatus">카메라 초기화 중...</div>
+        <div class="scan-tap-overlay" id="scanTapOverlay">
+          <button type="button" class="scan-tap-btn" id="scanTapBtn">탭하여 스캔 시작</button>
+        </div>
+      </div>
+      <div class="camera-toolbar">
+        <button type="button" class="cam-tool-btn" id="flashBtn" title="플래시" disabled>🔦</button>
+        <button type="button" class="cam-tool-btn" id="galleryBtn" title="갤러리에서 스캔">🖼️</button>
+        <div class="zoom-toggle">
+          <button type="button" class="zoom-btn active" id="zoom1x">1x</button>
+          <button type="button" class="zoom-btn" id="zoom2x">2x</button>
+        </div>
+        <button type="button" class="cam-close-btn" id="btnCloseCamera">닫기</button>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="galleryImageInput" accept="image/*" style="display:none;" />
+
+  <script src="https://unpkg.com/@zxing/library@0.20.0"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -668,13 +855,30 @@
       btnSignup: document.getElementById("btnSignup"),
       btnLogout: document.getElementById("btnLogout"),
       authUserLabel: document.getElementById("authUserLabel"),
-      btnAdminLink: document.getElementById("btnAdminLink")
+      btnAdminLink: document.getElementById("btnAdminLink"),
+      btnScanSearch: document.getElementById("btnScanSearch")
     };
 
     let appStarted = false;
     let dataTimer = null;
     let auth = null;
     let db = null;
+
+    // Camera scan state (same as admin.html)
+    let codeReader = null;
+    let lastScannedCode = null;
+    let lastScanTime = 0;
+    const scanDebounceTime = 1000;
+    let isScanning = false;
+    let scanSessionActive = false;
+    let cameraVideoTrack = null;
+    let flashEnabled = false;
+    let currentZoom = 1;
+    let maxZoom = 1;
+    let detectionFrameId = null;
+    let barcodeDetector = null;
+    let isProcessingScan = false;
+    let lastDetectTime = 0;
 
     function toast(msg) {
       els.toast.textContent = msg;
@@ -813,8 +1017,8 @@
         price: Number(d.price) || 0,
         stock: Number(d.stock) || 0,
         imageUrl: String(d.imageUrl || "").trim(),
+        upc: String(d.upc || "").trim(), // used for scan search only; not shown in UI/order text
         sortOrder: Number(d.sortOrder) || index
-        // upc is admin-only — intentionally omitted from the order app
       };
     }
 
@@ -848,17 +1052,24 @@
 
     /* ---------- UI ---------- */
 
+    function normalizeUpc(v) {
+      return String(v || "").trim().replace(/\s+/g, "");
+    }
+
     function scoreProduct(p, query) {
       const q = query.trim().toLowerCase();
       if (!q) return 0;
       const name = p.name.toLowerCase();
       const code = String(p.code).toLowerCase();
       const brand = String(p.brand || "").toLowerCase();
+      const upc = normalizeUpc(p.upc).toLowerCase();
+      const qUpc = normalizeUpc(q).toLowerCase();
+      if (upc && (upc === qUpc || upc.endsWith(qUpc) || qUpc.endsWith(upc))) return 110;
       if (code === q) return 100;
       if (code.includes(q)) return 90;
       if (brand === q) return 85;
       if (name.startsWith(q)) return 80;
-      if (name.includes(q) || brand.includes(q)) return 60;
+      if (name.includes(q) || brand.includes(q) || (upc && upc.includes(qUpc))) return 60;
       const words = q.split(/\s+/).filter((w) => w.length >= 2);
       if (words.length && words.every((w) => name.includes(w) || code.includes(w) || brand.includes(w))) {
         return 40;
@@ -1225,6 +1436,30 @@
 
     els.btnReload.addEventListener("click", () => loadFromFirebase(true));
 
+    if (els.btnScanSearch) {
+      els.btnScanSearch.addEventListener("click", () => startCameraScan());
+    }
+    document.getElementById("scanTapBtn").addEventListener("click", activateScanSession);
+    document.getElementById("scanTapOverlay").addEventListener("click", function (e) {
+      if (e.target === this) activateScanSession();
+    });
+    document.getElementById("flashBtn").addEventListener("click", toggleFlash);
+    document.getElementById("galleryBtn").addEventListener("click", () => {
+      document.getElementById("galleryImageInput").click();
+    });
+    document.getElementById("galleryImageInput").addEventListener("change", function () {
+      if (this.files && this.files[0]) {
+        scanFromGallery(this.files[0]);
+        this.value = "";
+      }
+    });
+    document.getElementById("zoom1x").addEventListener("click", () => setCameraZoom(1));
+    document.getElementById("zoom2x").addEventListener("click", () => setCameraZoom(2));
+    document.getElementById("btnCloseCamera").addEventListener("click", stopCameraScan);
+    window.addEventListener("resize", () => {
+      if (isScanning) resizeScanCanvas();
+    });
+
     document.getElementById("btnSave").addEventListener("click", async () => {
       const items = getItems();
       if (!items.length) return toast("Enter at least one quantity.");
@@ -1277,7 +1512,344 @@
       return (err && err.message) || "로그인에 실패했습니다.";
     }
 
+    function applyScannedSearch(code) {
+      const trimmed = normalizeUpc(code);
+      if (!trimmed) return;
+      els.search.value = trimmed;
+      state.brand = null;
+      refresh();
+      const hits = searchProducts(trimmed);
+      if (!hits.length) toast("일치하는 상품이 없습니다.");
+      else toast(`${hits.length}개 검색됨`);
+    }
+
+    /* ---------- Camera scan (same as admin.html) ---------- */
+
+    function initBarcodeDetector() {
+      if (barcodeDetector || typeof BarcodeDetector === "undefined") return;
+      try {
+        barcodeDetector = new BarcodeDetector({
+          formats: [
+            "ean_13", "ean_8", "upc_a", "upc_e",
+            "code_128", "code_39", "code_93",
+            "itf", "codabar", "qr_code", "data_matrix"
+          ]
+        });
+      } catch (e) {
+        barcodeDetector = null;
+      }
+    }
+
+    function getVideoDisplayMapping() {
+      const video = document.getElementById("cameraVideo");
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const rect = video.getBoundingClientRect();
+      const dw = rect.width;
+      const dh = rect.height;
+      if (!vw || !vh || !dw || !dh) return null;
+      const videoAspect = vw / vh;
+      const displayAspect = dw / dh;
+      let scale, offsetX, offsetY;
+      if (videoAspect > displayAspect) {
+        scale = dh / vh;
+        offsetX = (dw - vw * scale) / 2;
+        offsetY = 0;
+      } else {
+        scale = dw / vw;
+        offsetX = 0;
+        offsetY = (dh - vh * scale) / 2;
+      }
+      return { scale, offsetX, offsetY, dw, dh };
+    }
+
+    function clearScanCanvas() {
+      const canvas = document.getElementById("scanCanvas");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function resizeScanCanvas() {
+      const video = document.getElementById("cameraVideo");
+      const canvas = document.getElementById("scanCanvas");
+      const rect = video.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+    }
+
+    function drawBoundingBox(points, color, lineWidth) {
+      if (!points || points.length < 2) return;
+      const mapping = getVideoDisplayMapping();
+      if (!mapping) return;
+      const canvas = document.getElementById("scanCanvas");
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      resizeScanCanvas();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = (lineWidth || 3) * dpr;
+      ctx.lineJoin = "round";
+      const mapped = points.map((p) => ({
+        x: (p.x * mapping.scale + mapping.offsetX) * dpr,
+        y: (p.y * mapping.scale + mapping.offsetY) * dpr
+      }));
+      ctx.beginPath();
+      ctx.moveTo(mapped[0].x, mapped[0].y);
+      for (let i = 1; i < mapped.length; i++) ctx.lineTo(mapped[i].x, mapped[i].y);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    function drawBoxFromResultPoints(resultPoints, color) {
+      if (!resultPoints || resultPoints.length < 2) return;
+      drawBoundingBox(resultPoints.map((p) => ({ x: p.getX(), y: p.getY() })), color);
+    }
+
+    function drawBoxFromBarcodeDetector(barcode) {
+      if (barcode.cornerPoints && barcode.cornerPoints.length >= 4) {
+        drawBoundingBox(barcode.cornerPoints, "#e53935", 3);
+      } else if (barcode.boundingBox) {
+        const b = barcode.boundingBox;
+        drawBoundingBox([
+          { x: b.x, y: b.y },
+          { x: b.x + b.width, y: b.y },
+          { x: b.x + b.width, y: b.y + b.height },
+          { x: b.x, y: b.y + b.height }
+        ], "#e53935", 3);
+      }
+    }
+
+    function setScanStatus(text, state) {
+      const scanStatus = document.getElementById("scanStatus");
+      scanStatus.textContent = text;
+      scanStatus.className = "scan-status " + (state || "scanning");
+    }
+
+    function activateScanSession() {
+      scanSessionActive = true;
+      document.getElementById("scanTapOverlay").classList.add("hidden");
+      document.getElementById("scanLine").classList.add("active");
+      setScanStatus("바코드를 맞춰주세요", "scanning");
+      startDetectionLoop();
+    }
+
+    async function startDetectionLoop() {
+      if (!isScanning || !scanSessionActive) return;
+      const now = Date.now();
+      const video = document.getElementById("cameraVideo");
+      if (barcodeDetector && video.readyState >= 2 && !isProcessingScan && (now - lastDetectTime) > 80) {
+        lastDetectTime = now;
+        try {
+          const barcodes = await barcodeDetector.detect(video);
+          if (barcodes.length > 0 && isScanning && scanSessionActive) {
+            drawBoxFromBarcodeDetector(barcodes[0]);
+            setScanStatus("스캔 중...", "detecting");
+          } else if (!isProcessingScan) {
+            clearScanCanvas();
+            setScanStatus("바코드를 맞춰주세요", "scanning");
+          }
+        } catch (e) { /* skip */ }
+      }
+      detectionFrameId = requestAnimationFrame(startDetectionLoop);
+    }
+
+    function stopDetectionLoop() {
+      if (detectionFrameId) {
+        cancelAnimationFrame(detectionFrameId);
+        detectionFrameId = null;
+      }
+    }
+
+    function isValidBarcode(text) {
+      const trimmed = text ? text.trim() : "";
+      return trimmed.length >= 3 && /^[A-Za-z0-9\-_]+$/.test(trimmed);
+    }
+
+    function handleScanSuccess(trimmedText, result) {
+      if (isProcessingScan) return;
+      const now = Date.now();
+      if (trimmedText === lastScannedCode && (now - lastScanTime) < scanDebounceTime) return;
+      if (!isValidBarcode(trimmedText)) return;
+      isProcessingScan = true;
+      lastScannedCode = trimmedText;
+      lastScanTime = now;
+      if (result && result.getResultPoints) {
+        drawBoxFromResultPoints(result.getResultPoints(), "#4CAF50");
+      }
+      setScanStatus("✓ 스캔 성공!", "success");
+      document.getElementById("scanLine").classList.remove("active");
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      setTimeout(() => {
+        stopCameraScan();
+        applyScannedSearch(trimmedText);
+        isProcessingScan = false;
+      }, 400);
+    }
+
+    async function setupCameraTrack(videoElement) {
+      const stream = videoElement.srcObject;
+      if (!stream) return;
+      cameraVideoTrack = stream.getVideoTracks()[0];
+      if (!cameraVideoTrack) return;
+      const flashBtn = document.getElementById("flashBtn");
+      const capabilities = cameraVideoTrack.getCapabilities ? cameraVideoTrack.getCapabilities() : {};
+      flashBtn.disabled = !capabilities.torch;
+      flashEnabled = false;
+      flashBtn.classList.remove("active");
+      if (capabilities.zoom) {
+        maxZoom = Math.min(capabilities.zoom.max || 2, 4);
+        currentZoom = capabilities.zoom.min || 1;
+      } else {
+        maxZoom = 1;
+      }
+      document.getElementById("zoom2x").disabled = maxZoom < 1.5;
+    }
+
+    async function toggleFlash() {
+      if (!cameraVideoTrack) return;
+      flashEnabled = !flashEnabled;
+      try {
+        await cameraVideoTrack.applyConstraints({ advanced: [{ torch: flashEnabled }] });
+        document.getElementById("flashBtn").classList.toggle("active", flashEnabled);
+      } catch (e) {
+        flashEnabled = !flashEnabled;
+      }
+    }
+
+    async function setCameraZoom(level) {
+      if (!cameraVideoTrack) return;
+      const capabilities = cameraVideoTrack.getCapabilities ? cameraVideoTrack.getCapabilities() : {};
+      if (!capabilities.zoom) return;
+      const targetZoom = level === 2 ? Math.min(maxZoom, 2) : (capabilities.zoom.min || 1);
+      try {
+        await cameraVideoTrack.applyConstraints({ advanced: [{ zoom: targetZoom }] });
+        document.getElementById("zoom1x").classList.toggle("active", level === 1);
+        document.getElementById("zoom2x").classList.toggle("active", level === 2);
+      } catch (e) { /* ignore */ }
+    }
+
+    async function scanFromGallery(file) {
+      if (!file || !codeReader) return;
+      setScanStatus("이미지 분석 중...", "detecting");
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = async () => {
+        try {
+          const result = await codeReader.decodeFromImageElement(img);
+          const text = result.getText ? result.getText() : result.text;
+          URL.revokeObjectURL(url);
+          if (isValidBarcode(text)) handleScanSuccess(text.trim(), result);
+          else {
+            setScanStatus("바코드를 찾을 수 없습니다", "scanning");
+            setTimeout(() => {
+              if (isScanning) setScanStatus("바코드를 맞춰주세요", "scanning");
+            }, 2000);
+          }
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          setScanStatus("바코드를 찾을 수 없습니다", "scanning");
+          setTimeout(() => {
+            if (isScanning) setScanStatus("바코드를 맞춰주세요", "scanning");
+          }, 2000);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setScanStatus("이미지를 불러올 수 없습니다", "scanning");
+      };
+      img.src = url;
+    }
+
+    async function startCameraScan() {
+      if (isScanning) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("이 기기에서는 카메라 사용을 지원하지 않습니다.");
+        return;
+      }
+      if (typeof ZXing === "undefined") {
+        alert("ZXing 라이브러리를 불러오지 못했습니다.");
+        return;
+      }
+      initBarcodeDetector();
+      const overlay = document.getElementById("cameraOverlay");
+      const videoElement = document.getElementById("cameraVideo");
+      overlay.style.display = "flex";
+      isScanning = true;
+      scanSessionActive = false;
+      isProcessingScan = false;
+      clearScanCanvas();
+      document.getElementById("scanTapOverlay").classList.remove("hidden");
+      document.getElementById("scanLine").classList.remove("active");
+      setScanStatus("카메라 초기화 중...", "scanning");
+      try {
+        if (!codeReader) codeReader = new ZXing.BrowserMultiFormatReader();
+        else codeReader.reset();
+        const devices = await codeReader.listVideoInputDevices();
+        if (!devices || devices.length === 0) {
+          alert("사용 가능한 카메라를 찾을 수 없습니다.");
+          stopCameraScan();
+          return;
+        }
+        const backCamera = devices.find((d) => /back|rear|후면|environment/i.test(d.label)) || devices[devices.length - 1];
+        const constraints = {
+          video: {
+            deviceId: { exact: backCamera.deviceId },
+            facingMode: "environment",
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            focusMode: { ideal: "continuous" }
+          }
+        };
+        const scanCallback = (result) => {
+          if (!scanSessionActive || isProcessingScan) return;
+          if (result) {
+            const text = result.getText ? result.getText() : result.text;
+            if (result.getResultPoints) {
+              drawBoxFromResultPoints(result.getResultPoints(), "#e53935");
+              setScanStatus("스캔 중...", "detecting");
+            }
+            handleScanSuccess(text ? text.trim() : "", result);
+          }
+        };
+        await codeReader.decodeFromConstraints(constraints, videoElement, scanCallback);
+        const onVideoReady = () => {
+          resizeScanCanvas();
+          setupCameraTrack(videoElement);
+        };
+        if (videoElement.readyState >= 1) onVideoReady();
+        else videoElement.addEventListener("loadedmetadata", onVideoReady, { once: true });
+        setScanStatus("탭하여 스캔 시작", "scanning");
+      } catch (error) {
+        console.error("카메라 스캔 오류:", error);
+        alert("카메라를 시작하는 중 오류가 발생했습니다: " + error.message);
+        stopCameraScan();
+      }
+    }
+
+    function stopCameraScan() {
+      const overlay = document.getElementById("cameraOverlay");
+      stopDetectionLoop();
+      overlay.style.display = "none";
+      isScanning = false;
+      scanSessionActive = false;
+      isProcessingScan = false;
+      lastScannedCode = null;
+      lastScanTime = 0;
+      flashEnabled = false;
+      cameraVideoTrack = null;
+      clearScanCanvas();
+      document.getElementById("scanTapOverlay").classList.remove("hidden");
+      document.getElementById("scanLine").classList.remove("active");
+      document.getElementById("flashBtn").classList.remove("active");
+      document.getElementById("zoom1x").classList.add("active");
+      document.getElementById("zoom2x").classList.remove("active");
+      if (codeReader) {
+        try { codeReader.reset(); } catch (e) { console.error(e); }
+      }
+    }
+
     function showLoggedOut() {
+      stopCameraScan();
       els.authGate.classList.remove("hidden");
       els.appShell.classList.add("hidden");
       els.authError.textContent = "";
