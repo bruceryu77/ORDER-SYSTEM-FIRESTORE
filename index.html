@@ -756,8 +756,8 @@
       <aside class="panel panel-sticky">
         <div class="panel-head"><h2>Order</h2></div>
         <div class="panel-body">
-          <label class="field">Note (optional)
-            <textarea id="orderNote" rows="2" placeholder="Delivery / contact note"></textarea>
+          <label class="field">Store Name
+            <textarea id="orderNote" rows="2" placeholder="e.g. Amor Beauty supply"></textarea>
           </label>
           <div id="summary" class="summary empty">Your selected quantities will appear here.</div>
           <div class="btns">
@@ -1220,20 +1220,19 @@
         if (!groups.has(item.brand)) groups.set(item.brand, []);
         groups.get(item.brand).push(item);
       }
-      const lines = ["[Product Order · Firestore]", ""];
+      const storeName = els.orderNote.value.trim();
+      const lines = [];
+      if (storeName) {
+        lines.push(storeName);
+        lines.push("");
+      }
       for (const [brand, list] of groups.entries()) {
         lines.push(brand);
-        list.forEach((i) => lines.push(`${i.name} ${money(i.price)} × ${i.qty}`));
+        list.forEach((i) => lines.push(`${i.name} - ${i.qty}`));
         lines.push("");
       }
       const totalQty = items.reduce((s, i) => s + i.qty, 0);
-      const totalMoney = items.reduce((s, i) => s + i.qty * (i.price || 0), 0);
-      lines.push(`Total: ${totalQty} pcs · ${money(totalMoney)}`);
-      const note = els.orderNote.value.trim();
-      if (note) {
-        lines.push("");
-        lines.push(`Note: ${note}`);
-      }
+      lines.push(`Total: ${totalQty} pcs`);
       return lines.join("\n");
     }
 
@@ -1284,7 +1283,8 @@
     async function shareNative(text) {
       if (!navigator.share) return false;
       try {
-        await navigator.share({ title: "Product Order", text });
+        const title = els.orderNote.value.trim() || "Product Order";
+        await navigator.share({ title, text });
         return true;
       } catch (err) {
         if (err && err.name === "AbortError") return true;
