@@ -474,6 +474,15 @@
     .cart-btn.remove:hover {
       background: #efd5d0;
     }
+    .btn-clear-cart {
+      background: #f6e4e1;
+      color: #a33b2b;
+      border: 1px solid #ead2cd;
+      font-weight: 700;
+    }
+    .btn-clear-cart:hover:not(:disabled) {
+      background: #efd5d0;
+    }
     .total-row {
       display: flex;
       justify-content: space-between;
@@ -922,7 +931,7 @@
       <div class="btns">
         <button type="button" class="btn-primary" id="btnSave">Save / Share Order</button>
         <button type="button" class="btn-secondary" id="btnPrint">Print</button>
-        <button type="button" class="btn-secondary full" id="btnClearCart">Clear Cart</button>
+        <button type="button" class="btn-clear-cart full" id="btnClearCart">Clear Cart</button>
       </div>
       <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
     </div>
