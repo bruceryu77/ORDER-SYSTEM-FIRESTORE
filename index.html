@@ -1449,7 +1449,7 @@
       const storeName = els.orderNote.value.trim();
       const lines = [];
       if (storeName) {
-        lines.push(`Store Name - ${storeName}`);
+        lines.push(storeName);
         lines.push("");
         lines.push("--------------------");
         lines.push("");
@@ -1511,9 +1511,8 @@
     async function shareNative(text) {
       if (!navigator.share) return false;
       try {
-        // Keep a short title only. Kakao often joins "title - body",
-        // which previously glued Store Name and the first brand together.
-        await navigator.share({ title: "Order", text });
+        // Omit title because Kakao joins it to the first body line.
+        await navigator.share({ text });
         return true;
       } catch (err) {
         if (err && err.name === "AbortError") return true;
