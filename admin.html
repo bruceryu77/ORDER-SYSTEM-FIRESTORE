@@ -317,7 +317,10 @@
       <div class="card">
         <div class="topbar">
           <h2 style="margin:0;font-size:1.1rem;">등록된 상품</h2>
-          <button type="button" class="secondary" id="btnRefresh">Refresh</button>
+          <div class="btns">
+            <button type="button" class="secondary" id="btnDownloadCsv">Download CSV</button>
+            <button type="button" class="secondary" id="btnRefresh">Refresh</button>
+          </div>
         </div>
         <div class="search-row">
           <input type="search" id="searchInput" placeholder="이름 / 브랜드 / UPC 검색" autocomplete="off" />
@@ -385,6 +388,7 @@
       btnSave: document.getElementById("btnSave"),
       btnReset: document.getElementById("btnReset"),
       btnRefresh: document.getElementById("btnRefresh"),
+      btnDownloadCsv: document.getElementById("btnDownloadCsv"),
       btnScanUpc: document.getElementById("btnScanUpc"),
       searchInput: document.getElementById("searchInput"),
       btnSearchScan: document.getElementById("btnSearchScan"),
@@ -545,6 +549,40 @@
       items.sort((a, b) => String(a.brand || "").localeCompare(String(b.brand || "")) || String(a.name || "").localeCompare(String(b.name || "")));
       allProducts = items;
       applySearch();
+    }
+
+    function csvCell(value) {
+      const text = String(value ?? "");
+      return `"${text.replaceAll('"', '""')}"`;
+    }
+
+    function downloadAllProductsCsv() {
+      if (!allProducts.length) {
+        alert("다운로드할 상품이 없습니다.");
+        return;
+      }
+
+      const rows = [
+        ["name", "brand", "price", "stock", "UPC"],
+        ...allProducts.map((p) => [
+          p.name || "",
+          p.brand || "",
+          Number(p.price) || 0,
+          Number(p.stock) || 0,
+          normalizeUpc(p.upc)
+        ])
+      ];
+      const csv = "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `products-${date}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     }
 
     async function saveProduct() {
@@ -1011,6 +1049,7 @@
       els.btnSave.addEventListener("click", saveProduct);
       els.btnReset.addEventListener("click", resetForm);
       els.btnRefresh.addEventListener("click", () => loadList());
+      els.btnDownloadCsv.addEventListener("click", downloadAllProductsCsv);
       els.searchInput.addEventListener("input", applySearch);
       els.btnClearSearch.addEventListener("click", () => {
         els.searchInput.value = "";

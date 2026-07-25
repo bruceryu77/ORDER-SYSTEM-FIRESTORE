@@ -50,13 +50,9 @@
 
     .layout {
       display: grid;
-      grid-template-columns: 1.5fr 0.9fr;
+      grid-template-columns: 1fr;
       gap: 16px;
       align-items: start;
-    }
-    @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .panel-sticky { position: static; }
     }
 
     .panel {
@@ -78,8 +74,33 @@
       background: #f7f2ea;
     }
     .panel-head h2 { margin: 0; font-size: 1rem; }
-    .panel-sticky .panel-head { justify-content: space-between; }
     .panel-body { padding: 14px 16px 18px; display: grid; gap: 12px; }
+    .btn-cart {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #f7faf8;
+      border: 1px solid var(--accent);
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .btn-cart:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .cart-badge {
+      min-width: 22px;
+      height: 22px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: #fff;
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 800;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cart-badge.empty { opacity: 0.55; }
 
     .filters { padding: 14px 16px 0; display: grid; gap: 8px; }
     .filter-label {
@@ -393,12 +414,65 @@
       place-items: center;
       text-align: center;
     }
-    .summary-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .summary-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
     .summary-list li {
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
+      align-items: center;
       font-size: 0.88rem;
+      padding: 6px 0;
+      border-bottom: 1px solid #efe8dc;
+    }
+    .summary-list li:last-child { border-bottom: 0; }
+    .cart-item-name {
+      min-width: 0;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .cart-item-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .cart-qty {
+      min-width: 28px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+    .cart-btn {
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .cart-btn.plus,
+    .cart-btn.minus {
+      background: #dcefe6;
+      color: #2f5d4a;
+      border-color: #c5dfd2;
+    }
+    .cart-btn.plus:hover,
+    .cart-btn.minus:hover {
+      background: #cfe8db;
+    }
+    .cart-btn.remove {
+      background: #f6e4e1;
+      color: #a33b2b;
+      border-color: #ead2cd;
+      font-size: 0.92rem;
+    }
+    .cart-btn.remove:hover {
+      background: #efd5d0;
     }
     .total-row {
       display: flex;
@@ -708,12 +782,71 @@
     }
     .sheet .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .sheet .btns .full { grid-column: 1 / -1; }
+    #cartSheet .sheet { max-height: min(90vh, 820px); }
+    #cartSheet #orderNote {
+      width: 100%;
+      height: 42px;
+      min-height: 42px;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font: inherit;
+      background: #fff;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    #cartSheet .store-name-field {
+      display: grid;
+      gap: 6px;
+    }
+    #cartSheet .store-name-field > span {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    #cartSheet .store-name-field.remind > span {
+      color: var(--accent);
+      animation: storeNameLabelPulse 1.2s ease-in-out infinite;
+    }
+    #cartSheet .store-name-field.remind #orderNote {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 0 rgba(47, 93, 74, 0.4);
+      animation: storeNameInputPulse 1.4s ease-in-out infinite;
+    }
+    #cartSheet .store-name-field.filled #orderNote {
+      border-color: var(--line);
+      box-shadow: none;
+      animation: none;
+    }
+    @keyframes storeNameLabelPulse {
+      0%, 100% { opacity: 1; transform: translateX(0); }
+      50% { opacity: 0.7; transform: translateX(2px); }
+    }
+    @keyframes storeNameInputPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(47, 93, 74, 0.45);
+        background: #fff;
+      }
+      50% {
+        box-shadow: 0 0 0 6px rgba(47, 93, 74, 0);
+        background: #f3faf6;
+      }
+    }
+    #cartSheet .summary {
+      min-height: 300px;
+      max-height: 52vh;
+    }
+    .print-only { display: none; }
 
     @media print {
       body { background: #fff; }
-      .btns, .filters, header .sub, .toast, .sheet-backdrop { display: none !important; }
-      .layout { display: block; }
-      .catalog { max-height: none; overflow: visible; }
+      .auth-gate, .app-shell, .toast, .sheet-backdrop, #cameraOverlay { display: none !important; }
+      .print-only {
+        display: block !important;
+        white-space: pre-wrap;
+        font: 14px/1.5 "Segoe UI", sans-serif;
+        color: #000;
+        padding: 24px;
+      }
     }
   </style>
 </head>
@@ -751,10 +884,10 @@
     <div class="layout">
       <section class="panel">
         <div class="panel-head">
-          <div class="btns">
-            <button type="button" class="btn-secondary btn-sm" id="btnClearQty">Clear Qty</button>
-            <button type="button" class="btn-secondary btn-sm" id="btnReload">Reload Firebase</button>
-          </div>
+          <button type="button" class="btn-sm btn-cart" id="btnCart">
+            CART
+            <span class="cart-badge empty" id="cartBadge">0</span>
+          </button>
         </div>
 
         <div class="filters">
@@ -772,23 +905,29 @@
           <div class="loading">최신정보로 업데이트 중입니다</div>
         </div>
       </section>
-
-      <aside class="panel panel-sticky">
-        <div class="panel-head"><h2>Order</h2></div>
-        <div class="panel-body">
-          <label class="field">Store Name
-            <textarea id="orderNote" rows="2" placeholder="e.g. Amor Beauty supply"></textarea>
-          </label>
-          <div id="summary" class="summary empty">Your selected quantities will appear here.</div>
-          <div class="btns">
-            <button type="button" class="btn-primary" id="btnSave">Save / Share Order</button>
-            <button type="button" class="btn-secondary" id="btnPrint">Print</button>
-          </div>
-          <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
-        </div>
-      </aside>
     </div>
   </div>
+
+  <div class="sheet-backdrop" id="cartSheet" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-labelledby="cartTitle">
+      <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <h3 id="cartTitle" style="margin:0;">Cart</h3>
+        <button type="button" class="btn-secondary btn-sm" id="btnCloseCart">Close</button>
+      </div>
+      <label class="field store-name-field remind" id="storeNameField">
+        <span>Store Name</span>
+        <input type="text" id="orderNote" placeholder="e.g. Amor Beauty supply" autocomplete="organization" />
+      </label>
+      <div id="summary" class="summary empty">Your selected quantities will appear here.</div>
+      <div class="btns">
+        <button type="button" class="btn-primary" id="btnSave">Save / Share Order</button>
+        <button type="button" class="btn-secondary" id="btnPrint">Print</button>
+      </div>
+      <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
+    </div>
+  </div>
+
+  <pre id="printOrder" class="print-only"></pre>
 
   <div class="sheet-backdrop" id="shareSheet" aria-hidden="true">
     <div class="sheet" role="dialog" aria-labelledby="shareTitle">
@@ -865,7 +1004,11 @@
       shareSheet: document.getElementById("shareSheet"),
       shareText: document.getElementById("shareText"),
       statusLine: document.getElementById("statusLine"),
-      btnReload: document.getElementById("btnReload"),
+      cartSheet: document.getElementById("cartSheet"),
+      btnCart: document.getElementById("btnCart"),
+      cartBadge: document.getElementById("cartBadge"),
+      storeNameField: document.getElementById("storeNameField"),
+      printOrder: document.getElementById("printOrder"),
       authGate: document.getElementById("authGate"),
       appShell: document.getElementById("appShell"),
       authError: document.getElementById("authError"),
@@ -1177,7 +1320,7 @@
 
     function renderCatalog() {
       if (!products.length) {
-        els.catalog.innerHTML = `<div class="empty-hint">No products loaded. Tap Reload Firebase.</div>`;
+        els.catalog.innerHTML = `<div class="empty-hint">No products loaded.</div>`;
         return;
       }
 
@@ -1221,27 +1364,79 @@
       return items;
     }
 
+    function updateCartBadge(totalQty) {
+      if (!els.cartBadge) return;
+      els.cartBadge.textContent = String(totalQty || 0);
+      els.cartBadge.classList.toggle("empty", !totalQty);
+    }
+
     function updateSummary() {
       const items = getItems();
+      const total = items.reduce((s, i) => s + i.qty, 0);
+      updateCartBadge(total);
+      if (!els.summary) return;
       if (!items.length) {
         els.summary.className = "summary empty";
         els.summary.textContent = "Your selected quantities will appear here.";
         return;
       }
-      const total = items.reduce((s, i) => s + i.qty, 0);
-      const totalMoney = items.reduce((s, i) => s + i.qty * (i.price || 0), 0);
       els.summary.className = "summary";
       els.summary.innerHTML = `
         <ul class="summary-list">
-          ${items.map((i) => `
-            <li>
-              <span>${escapeHtml(i.name)}</span>
-              <span>${money(i.price)} · × ${i.qty}</span>
-            </li>
-          `).join("")}
+          ${items.map((i) => {
+            const key = escapeHtml(productKey(i));
+            return `
+            <li data-key="${key}">
+              <span class="cart-item-name">${escapeHtml(i.name)}</span>
+              <div class="cart-item-controls">
+                <button type="button" class="cart-btn minus" data-action="minus" data-key="${key}" aria-label="Decrease quantity">−</button>
+                <span class="cart-qty">${i.qty}</span>
+                <button type="button" class="cart-btn plus" data-action="plus" data-key="${key}" aria-label="Increase quantity">+</button>
+                <button type="button" class="cart-btn remove" data-action="remove" data-key="${key}" aria-label="Remove item">×</button>
+              </div>
+            </li>`;
+          }).join("")}
         </ul>
-        <div class="total-row"><span>Total</span><span>${total} pcs · ${money(totalMoney)}</span></div>
+        <div class="total-row"><span>Total</span><span>${total} pcs</span></div>
       `;
+    }
+
+    function adjustCartQty(key, delta) {
+      if (!key) return;
+      const next = Math.max(0, (Number(state.qtys[key]) || 0) + delta);
+      if (next > 0) state.qtys[key] = next;
+      else delete state.qtys[key];
+      refresh();
+    }
+
+    function removeCartItem(key) {
+      if (!key) return;
+      delete state.qtys[key];
+      refresh();
+    }
+
+    function updateStoreNameReminder() {
+      if (!els.storeNameField || !els.orderNote) return;
+      const filled = Boolean(els.orderNote.value.trim());
+      els.storeNameField.classList.toggle("remind", !filled);
+      els.storeNameField.classList.toggle("filled", filled);
+    }
+
+    function openCart() {
+      updateSummary();
+      updateStoreNameReminder();
+      els.cartSheet.classList.add("open");
+      els.cartSheet.setAttribute("aria-hidden", "false");
+      if (!els.orderNote.value.trim()) {
+        setTimeout(() => {
+          try { els.orderNote.focus(); } catch (_) { /* ignore */ }
+        }, 80);
+      }
+    }
+
+    function closeCart() {
+      els.cartSheet.classList.remove("open");
+      els.cartSheet.setAttribute("aria-hidden", "true");
     }
 
     function orderText() {
@@ -1355,6 +1550,7 @@
         els.search.value = draft.search || "";
         if (draft.brand) state.brand = draft.brand;
         if (draft.qtys && typeof draft.qtys === "object") state.qtys = draft.qtys;
+        updateStoreNameReminder();
       } catch { /* ignore */ }
     }
 
@@ -1402,8 +1598,6 @@
     }
 
     async function loadFromFirebase(force) {
-      els.btnReload.disabled = true;
-
       const cached = !force ? loadCache() : null;
       const cacheAge = cached && cached.savedAt ? Date.now() - cached.savedAt : Infinity;
       const cacheFresh = cacheAge < CACHE_MAX_AGE_MS;
@@ -1414,7 +1608,6 @@
         refresh();
         if (cacheFresh && !force) {
           setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${photoCount()} photos`);
-          els.btnReload.disabled = false;
           refreshDataQuiet();
           return;
         }
@@ -1442,8 +1635,6 @@
         }
         setStatus(`<span class="err">Load failed</span> · ${escapeHtml(err.message || "error")}`);
         if (!products.length) toast("Firebase data load failed");
-      } finally {
-        els.btnReload.disabled = false;
       }
     }
 
@@ -1471,15 +1662,25 @@
       refresh();
     });
 
-    els.orderNote.addEventListener("input", saveDraft);
-
-    document.getElementById("btnClearQty").addEventListener("click", () => {
-      state.qtys = {};
-      refresh();
-      toast("Quantities cleared.");
+    els.orderNote.addEventListener("input", () => {
+      updateStoreNameReminder();
+      saveDraft();
     });
 
-    els.btnReload.addEventListener("click", () => loadFromFirebase(true));
+    els.btnCart.addEventListener("click", openCart);
+    document.getElementById("btnCloseCart").addEventListener("click", closeCart);
+    els.cartSheet.addEventListener("click", (e) => {
+      if (e.target === els.cartSheet) closeCart();
+    });
+    els.summary.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action][data-key]");
+      if (!btn || !els.summary.contains(btn)) return;
+      const key = btn.getAttribute("data-key");
+      const action = btn.getAttribute("data-action");
+      if (action === "plus") adjustCartQty(key, 1);
+      else if (action === "minus") adjustCartQty(key, -1);
+      else if (action === "remove") removeCartItem(key);
+    });
 
     if (els.btnScanSearch) {
       els.btnScanSearch.addEventListener("click", () => startCameraScan());
@@ -1540,7 +1741,12 @@
     els.shareSheet.addEventListener("click", (e) => {
       if (e.target === els.shareSheet) closeShareSheet();
     });
-    document.getElementById("btnPrint").addEventListener("click", () => window.print());
+    document.getElementById("btnPrint").addEventListener("click", () => {
+      const items = getItems();
+      if (!items.length) return toast("Enter at least one quantity.");
+      if (els.printOrder) els.printOrder.textContent = orderText();
+      window.print();
+    });
 
     function authErrorMessage(err) {
       const code = err && err.code;
