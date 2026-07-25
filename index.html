@@ -922,6 +922,7 @@
       <div class="btns">
         <button type="button" class="btn-primary" id="btnSave">Save / Share Order</button>
         <button type="button" class="btn-secondary" id="btnPrint">Print</button>
+        <button type="button" class="btn-secondary full" id="btnClearCart">Clear Cart</button>
       </div>
       <p class="note">Mobile: Share → KakaoTalk or Messages. Or long-press the order text to copy.</p>
     </div>
@@ -1733,6 +1734,15 @@
       if (!items.length) return toast("Enter at least one quantity.");
       if (els.printOrder) els.printOrder.textContent = orderText();
       window.print();
+    });
+
+    document.getElementById("btnClearCart").addEventListener("click", () => {
+      if (!getItems().length) return toast("Cart is already empty.");
+      const ok = confirm("Are you sure you want to clear the cart?");
+      if (!ok) return;
+      state.qtys = {};
+      refresh();
+      toast("Cart cleared.");
     });
 
     function authErrorMessage(err) {
