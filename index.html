@@ -852,11 +852,15 @@
       min-height: 300px;
       max-height: 52vh;
     }
-    #scanProductSheet .sheet { max-height: min(70vh, 520px); }
-    .scan-product-card {
-      display: grid;
+    #scanProductSheet .sheet {
+      max-height: min(70vh, 520px);
       gap: 10px;
       padding: 14px;
+    }
+    .scan-product-card {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
       border: 1px solid var(--line);
       border-radius: 12px;
       background: #fff;
@@ -891,25 +895,47 @@
       text-align: right;
     }
     .scan-product-meta dd.out { color: var(--warn); }
-    #scanProductSheet .field { display: grid; gap: 6px; }
+    #scanProductSheet .field {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
     #scanProductSheet .field > span {
+      flex: 0 0 auto;
       font-size: 0.78rem;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--muted);
+      white-space: nowrap;
     }
     #scanOrderQty {
-      width: 100%;
-      height: 48px;
-      padding: 10px 13px;
+      flex: 1 1 auto;
+      width: auto;
+      min-width: 0;
+      height: 44px;
+      padding: 8px 12px;
       border: 1px solid var(--line);
       border-radius: 10px;
       font: inherit;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       font-weight: 700;
       text-align: center;
       background: #fff;
+    }
+    #scanProductSheet .btns {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    #btnCancelScanProduct {
+      background: #f6e4e1;
+      color: #a33b2b;
+      border: 1px solid #ead2cd;
+      font-weight: 700;
+    }
+    #btnCancelScanProduct:hover:not(:disabled) {
+      background: #efd5d0;
+      border-color: #e0c0b9;
     }
     .print-only { display: none; }
 
@@ -1042,8 +1068,8 @@
         <input type="number" id="scanOrderQty" min="0" step="1" inputmode="numeric" value="1" />
       </label>
       <div class="btns">
-        <button type="button" class="btn-primary full" id="btnAddScanToCart">Add to Cart</button>
-        <button type="button" class="btn-secondary full" id="btnCancelScanProduct">Cancel</button>
+        <button type="button" class="btn-primary" id="btnAddScanToCart">Add to Cart</button>
+        <button type="button" class="btn-secondary" id="btnCancelScanProduct">Cancel</button>
       </div>
     </div>
   </div>
