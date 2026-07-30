@@ -76,15 +76,21 @@
     .panel-head h2 { margin: 0; font-size: 1rem; }
     .panel-body { padding: 14px 16px 18px; display: grid; gap: 12px; }
     .btn-cart {
-      position: relative;
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 25;
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      padding: 12px 18px;
+      border-radius: 999px;
       background: var(--accent);
       color: #f7faf8;
       border: 1px solid var(--accent);
       font-weight: 700;
       letter-spacing: 0.04em;
+      box-shadow: 0 8px 24px rgba(47, 93, 74, 0.35);
     }
     .btn-cart:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
     .cart-badge {
@@ -846,6 +852,65 @@
       min-height: 300px;
       max-height: 52vh;
     }
+    #scanProductSheet .sheet { max-height: min(70vh, 520px); }
+    .scan-product-card {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+    .scan-product-card .scan-product-name {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.3;
+    }
+    .scan-product-meta {
+      display: grid;
+      gap: 6px;
+      margin: 0;
+      font-size: 0.92rem;
+    }
+    .scan-product-meta div {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .scan-product-meta dt {
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .scan-product-meta dd {
+      margin: 0;
+      font-weight: 700;
+      text-align: right;
+    }
+    .scan-product-meta dd.out { color: var(--warn); }
+    #scanProductSheet .field { display: grid; gap: 6px; }
+    #scanProductSheet .field > span {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #scanOrderQty {
+      width: 100%;
+      height: 48px;
+      padding: 10px 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font: inherit;
+      font-size: 1.15rem;
+      font-weight: 700;
+      text-align: center;
+      background: #fff;
+    }
     .print-only { display: none; }
 
     @media print {
@@ -892,15 +957,13 @@
       </div>
     </header>
 
+    <button type="button" class="btn-cart" id="btnCart">
+      CART
+      <span class="cart-badge empty" id="cartBadge">0</span>
+    </button>
+
     <div class="layout">
       <section class="panel">
-        <div class="panel-head">
-          <button type="button" class="btn-sm btn-cart" id="btnCart">
-            CART
-            <span class="cart-badge empty" id="cartBadge">0</span>
-          </button>
-        </div>
-
         <div class="filters">
           <div class="status-line" id="statusLine">Ready</div>
           <p class="filter-label">Search product code / name (all brands)</p>
@@ -951,6 +1014,36 @@
         <button type="button" class="btn-secondary" id="btnShareNative">Share</button>
         <button type="button" class="btn-secondary" id="btnSms">Send SMS</button>
         <button type="button" class="btn-secondary full" id="btnCloseSheet">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-backdrop" id="scanProductSheet" aria-hidden="true">
+    <div class="sheet" role="dialog" aria-labelledby="scanProductTitle">
+      <div class="topbar" style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <h3 id="scanProductTitle" style="margin:0;">Scanned Product</h3>
+        <button type="button" class="btn-secondary btn-sm" id="btnCloseScanProduct">Close</button>
+      </div>
+      <div class="scan-product-card" id="scanProductCard">
+        <p class="scan-product-name" id="scanProductName">—</p>
+        <dl class="scan-product-meta">
+          <div>
+            <dt>UPC</dt>
+            <dd id="scanProductUpc">—</dd>
+          </div>
+          <div>
+            <dt>Stock</dt>
+            <dd id="scanProductStock">—</dd>
+          </div>
+        </dl>
+      </div>
+      <label class="field">
+        <span>Order Qty</span>
+        <input type="number" id="scanOrderQty" min="0" step="1" inputmode="numeric" value="1" />
+      </label>
+      <div class="btns">
+        <button type="button" class="btn-primary full" id="btnAddScanToCart">Add to Cart</button>
+        <button type="button" class="btn-secondary full" id="btnCancelScanProduct">Cancel</button>
       </div>
     </div>
   </div>
@@ -1031,13 +1124,22 @@
       btnLogout: document.getElementById("btnLogout"),
       authUserLabel: document.getElementById("authUserLabel"),
       btnAdminLink: document.getElementById("btnAdminLink"),
-      btnScanSearch: document.getElementById("btnScanSearch")
+      btnScanSearch: document.getElementById("btnScanSearch"),
+      scanProductSheet: document.getElementById("scanProductSheet"),
+      scanProductName: document.getElementById("scanProductName"),
+      scanProductUpc: document.getElementById("scanProductUpc"),
+      scanProductStock: document.getElementById("scanProductStock"),
+      scanOrderQty: document.getElementById("scanOrderQty"),
+      btnAddScanToCart: document.getElementById("btnAddScanToCart"),
+      btnCloseScanProduct: document.getElementById("btnCloseScanProduct"),
+      btnCancelScanProduct: document.getElementById("btnCancelScanProduct")
     };
 
     let appStarted = false;
     let dataTimer = null;
     let auth = null;
     let db = null;
+    let pendingScanProduct = null;
 
     // Camera scan state (same as admin.html)
     let codeReader = null;
@@ -1684,6 +1786,28 @@
     if (els.btnScanSearch) {
       els.btnScanSearch.addEventListener("click", () => startCameraScan());
     }
+    if (els.btnCloseScanProduct) {
+      els.btnCloseScanProduct.addEventListener("click", closeScanProductSheet);
+    }
+    if (els.btnCancelScanProduct) {
+      els.btnCancelScanProduct.addEventListener("click", closeScanProductSheet);
+    }
+    if (els.btnAddScanToCart) {
+      els.btnAddScanToCart.addEventListener("click", addScannedProductToCart);
+    }
+    if (els.scanProductSheet) {
+      els.scanProductSheet.addEventListener("click", (e) => {
+        if (e.target === els.scanProductSheet) closeScanProductSheet();
+      });
+    }
+    if (els.scanOrderQty) {
+      els.scanOrderQty.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          addScannedProductToCart();
+        }
+      });
+    }
     document.getElementById("scanTapBtn").addEventListener("click", activateScanSession);
     document.getElementById("scanTapOverlay").addEventListener("click", function (e) {
       if (e.target === this) activateScanSession();
@@ -1774,12 +1898,62 @@
     function applyScannedSearch(code) {
       const trimmed = normalizeUpc(code);
       if (!trimmed) return;
-      els.search.value = trimmed;
-      state.brand = null;
-      refresh();
       const hits = searchProducts(trimmed);
-      if (!hits.length) toast("일치하는 상품이 없습니다.");
-      else toast(`${hits.length}개 검색됨`);
+      if (!hits.length) {
+        els.search.value = trimmed;
+        state.brand = null;
+        refresh();
+        toast("일치하는 상품이 없습니다.");
+        return;
+      }
+      openScanProductSheet(hits[0]);
+    }
+
+    function openScanProductSheet(product) {
+      if (!product || !els.scanProductSheet) return;
+      pendingScanProduct = product;
+      const key = productKey(product);
+      const existingQty = Number(state.qtys[key]) || 0;
+      els.scanProductName.textContent = product.name || "—";
+      els.scanProductUpc.textContent = product.upc || "—";
+      const stockEl = els.scanProductStock;
+      if (product.stock <= 0) {
+        stockEl.textContent = "0 (Out of stock)";
+        stockEl.classList.add("out");
+      } else {
+        stockEl.textContent = String(product.stock);
+        stockEl.classList.remove("out");
+      }
+      els.scanOrderQty.value = existingQty > 0 ? existingQty : 1;
+      els.scanProductSheet.classList.add("open");
+      els.scanProductSheet.setAttribute("aria-hidden", "false");
+      setTimeout(() => {
+        try {
+          els.scanOrderQty.focus();
+          els.scanOrderQty.select();
+        } catch (_) { /* ignore */ }
+      }, 80);
+    }
+
+    function closeScanProductSheet() {
+      if (!els.scanProductSheet) return;
+      els.scanProductSheet.classList.remove("open");
+      els.scanProductSheet.setAttribute("aria-hidden", "true");
+      pendingScanProduct = null;
+    }
+
+    function addScannedProductToCart() {
+      if (!pendingScanProduct) return;
+      const key = productKey(pendingScanProduct);
+      let qty = Math.floor(Number(els.scanOrderQty.value) || 0);
+      if (qty < 0) qty = 0;
+      if (qty > 0) state.qtys[key] = qty;
+      else delete state.qtys[key];
+      refresh();
+      saveDraft();
+      closeScanProductSheet();
+      if (qty > 0) toast(`Cart에 ${qty}개 담김`);
+      else toast("수량이 0이라 Cart에 담지 않았습니다.");
     }
 
     /* ---------- Camera scan (same as admin.html) ---------- */
