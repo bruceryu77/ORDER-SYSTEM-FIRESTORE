@@ -852,10 +852,31 @@
       min-height: 300px;
       max-height: 52vh;
     }
+    #scanProductSheet {
+      padding: 12px;
+      overflow-x: hidden;
+      place-items: end stretch;
+      justify-items: center;
+    }
     #scanProductSheet .sheet {
+      width: 100%;
+      max-width: min(420px, 100%);
+      min-width: 0;
+      box-sizing: border-box;
       max-height: min(70vh, 520px);
       gap: 10px;
-      padding: 14px;
+      padding: 12px;
+      overflow-x: hidden;
+    }
+    #scanProductSheet .topbar {
+      min-width: 0;
+    }
+    #scanProductSheet .topbar h3 {
+      min-width: 0;
+      font-size: 1rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .scan-product-card {
       display: grid;
@@ -864,28 +885,35 @@
       border: 1px solid var(--line);
       border-radius: 12px;
       background: #fff;
+      min-width: 0;
+      overflow: hidden;
     }
     .scan-product-card .scan-product-name {
       margin: 0;
-      font-size: 1.05rem;
+      font-size: 1rem;
       font-weight: 800;
       line-height: 1.3;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
     .scan-product-meta {
       display: grid;
       gap: 6px;
       margin: 0;
-      font-size: 0.92rem;
+      font-size: 0.88rem;
+      min-width: 0;
     }
     .scan-product-meta div {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
+      min-width: 0;
     }
     .scan-product-meta dt {
+      flex: 0 0 auto;
       color: var(--muted);
       font-weight: 700;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
@@ -893,16 +921,19 @@
       margin: 0;
       font-weight: 700;
       text-align: right;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .scan-product-meta dd.out { color: var(--warn); }
     #scanProductSheet .field {
-      display: flex;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
       align-items: center;
-      gap: 12px;
+      gap: 10px;
+      min-width: 0;
     }
     #scanProductSheet .field > span {
-      flex: 0 0 auto;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -910,22 +941,31 @@
       white-space: nowrap;
     }
     #scanOrderQty {
-      flex: 1 1 auto;
-      width: auto;
+      width: 100%;
+      max-width: 100%;
       min-width: 0;
-      height: 44px;
-      padding: 8px 12px;
+      height: 42px;
+      padding: 8px 10px;
       border: 1px solid var(--line);
       border-radius: 10px;
       font: inherit;
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 700;
       text-align: center;
       background: #fff;
+      box-sizing: border-box;
     }
     #scanProductSheet .btns {
-      grid-template-columns: 1fr 1fr;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
       gap: 8px;
+      min-width: 0;
+    }
+    #scanProductSheet .btns button {
+      min-width: 0;
+      padding: 10px 8px;
+      font-size: 0.88rem;
+      white-space: nowrap;
     }
     #btnCancelScanProduct {
       background: #f6e4e1;
@@ -936,6 +976,25 @@
     #btnCancelScanProduct:hover:not(:disabled) {
       background: #efd5d0;
       border-color: #e0c0b9;
+    }
+    @media (max-width: 640px) {
+      #scanProductSheet {
+        padding: 10px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+      }
+      #scanProductSheet .sheet {
+        padding: 12px;
+        gap: 8px;
+        border-radius: 14px;
+      }
+      #scanProductSheet .btns button {
+        padding: 10px 6px;
+        font-size: 0.82rem;
+      }
+      #scanOrderQty {
+        height: 40px;
+        font-size: 1rem;
+      }
     }
     .print-only { display: none; }
 
