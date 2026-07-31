@@ -1612,15 +1612,42 @@
       return items;
     }
 
+    function cartQtyTotal() {
+      return Object.values(state.qtys).reduce((s, q) => s + (Number(q) || 0), 0);
+    }
+
     function updateCartBadge(totalQty) {
       if (!els.cartBadge) return;
-      els.cartBadge.textContent = String(totalQty || 0);
-      els.cartBadge.classList.toggle("empty", !totalQty);
+      const n = totalQty == null ? cartQtyTotal() : totalQty;
+      els.cartBadge.textContent = String(n || 0);
+      els.cartBadge.classList.toggle("empty", !n);
+    }
+
+    function catalogSignature(list) {
+      return (list || []).map((p) =>
+        [
+          p.docId || "",
+          p.brand || "",
+          p.name || "",
+          p.code || "",
+          p.price ?? "",
+          p.stock ?? "",
+          p.imageUrl || "",
+          p.upc || "",
+          p.sortOrder ?? ""
+        ].join("\t")
+      ).join("\n");
+    }
+
+    function catalogsEqual(a, b) {
+      if (a === b) return true;
+      if (!a || !b || a.length !== b.length) return false;
+      return catalogSignature(a) === catalogSignature(b);
     }
 
     function updateSummary() {
       const items = getItems();
-      const total = items.reduce((s, i) => s + i.qty, 0);
+      const total = cartQtyTotal();
       updateCartBadge(total);
       if (!els.summary) return;
       if (!items.length) {
@@ -1822,9 +1849,11 @@
     async function refreshDataQuiet() {
       try {
         const list = await loadProductsFromFirestore();
+        const changed = !catalogsEqual(products, list);
+        saveCache(list);
+        if (!changed) return;
         products = list;
         syncBrands();
-        saveCache(list);
         refresh();
         setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${photoCount()} photos`);
       } catch (err) {
@@ -1854,11 +1883,14 @@
 
       try {
         const list = await loadProductsFromFirestore();
-        products = list;
-        syncBrands();
+        const changed = !catalogsEqual(products, list);
         saveCache(list);
+        if (changed || !products.length) {
+          products = list;
+          syncBrands();
+          refresh();
+        }
         setStatus(`<span class="ok">Ready</span> · ${products.length} items · ${brands.length} brands · ${photoCount()} photos`);
-        refresh();
         if (force) toast(`Loaded ${products.length} products · ${photoCount()} photos`);
         if (!list.length) {
           els.catalog.innerHTML = `<div class="empty-hint">Firestore에 상품이 없습니다.<br/>admin.html 에서 상품을 등록하거나 Firebase Console에서 <code>products</code> 컬렉션을 추가하세요.</div>`;
