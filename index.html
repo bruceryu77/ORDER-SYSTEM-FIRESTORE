@@ -965,23 +965,27 @@
     }
     .scan-product-meta dd.out { color: var(--warn); }
     #scanProductSheet .field {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
+      display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 10px;
       min-width: 0;
     }
     #scanProductSheet .field > span {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--muted);
+      flex: 1;
+      min-width: 0;
+      font-size: 1rem;
+      font-weight: 800;
+      line-height: 1.3;
+      letter-spacing: normal;
+      text-transform: none;
+      color: var(--ink);
       white-space: nowrap;
     }
     #scanOrderQty {
-      width: 100%;
-      max-width: 100%;
+      flex: 0 0 45%;
+      width: 45%;
+      max-width: 45%;
       min-width: 0;
       height: 42px;
       padding: 8px 10px;
