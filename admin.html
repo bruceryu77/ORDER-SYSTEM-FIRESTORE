@@ -50,6 +50,44 @@
     button.secondary { background: #3f3a33; }
     button.danger { background: var(--danger); }
     button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    #btnSearchScan.btn-scan-search {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+      font-weight: 700;
+      animation: scanSearchPulse 1.8s ease-in-out infinite;
+    }
+    #btnSearchScan.btn-scan-search:hover:not(:disabled) {
+      background: #bbdefb;
+      border-color: #64b5f6;
+      animation: none;
+      transform: scale(1.02);
+    }
+    #btnSearchScan .scan-barcode-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      animation: scanBarcodeShimmer 1.8s ease-in-out infinite;
+    }
+    @keyframes scanSearchPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.35);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(33, 150, 243, 0);
+        transform: scale(1.015);
+      }
+    }
+    @keyframes scanBarcodeShimmer {
+      0%, 100% { opacity: 1; transform: translateX(0); }
+      50% { opacity: 0.65; transform: translateX(2px); }
+    }
     .error { color: var(--danger); min-height: 1.2em; }
     .list { display: grid; gap: 10px; }
     .item {
@@ -349,7 +387,17 @@
         </div>
         <div class="search-row">
           <input type="search" id="searchInput" placeholder="이름 / 브랜드 / UPC 검색" autocomplete="off" />
-          <button type="button" class="secondary" id="btnSearchScan">스캔 검색</button>
+          <button type="button" class="secondary btn-scan-search" id="btnSearchScan">
+            <svg class="scan-barcode-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="2" y="4" width="2" height="16" fill="currentColor"/>
+              <rect x="6" y="4" width="1.5" height="16" fill="currentColor"/>
+              <rect x="9" y="4" width="3" height="16" fill="currentColor"/>
+              <rect x="14" y="4" width="1.5" height="16" fill="currentColor"/>
+              <rect x="17" y="4" width="2" height="16" fill="currentColor"/>
+              <rect x="21" y="4" width="1" height="16" fill="currentColor"/>
+            </svg>
+            스캔 검색
+          </button>
           <button type="button" class="secondary" id="btnClearSearch">Clear</button>
         </div>
         <p class="filter-label">Browse by brand</p>

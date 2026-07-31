@@ -405,6 +405,45 @@
     .btn-secondary:hover:not(:disabled) { background: #e7ded0; }
     .btn-sm { padding: 7px 10px; font-size: 0.82rem; }
 
+    #btnScanSearch.btn-scan-search {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #90caf9;
+      font-weight: 700;
+      animation: scanSearchPulse 1.8s ease-in-out infinite;
+    }
+    #btnScanSearch.btn-scan-search:hover:not(:disabled) {
+      background: #bbdefb;
+      border-color: #64b5f6;
+      animation: none;
+      transform: scale(1.02);
+    }
+    #btnScanSearch .scan-barcode-icon {
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      animation: scanBarcodeShimmer 1.8s ease-in-out infinite;
+    }
+    @keyframes scanSearchPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.35);
+        transform: scale(1);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(33, 150, 243, 0);
+        transform: scale(1.015);
+      }
+    }
+    @keyframes scanBarcodeShimmer {
+      0%, 100% { opacity: 1; transform: translateX(0); }
+      50% { opacity: 0.65; transform: translateX(2px); }
+    }
+
     .summary {
       border: 1px dashed var(--line);
       border-radius: 12px;
@@ -1053,7 +1092,17 @@
           <div class="status-line" id="statusLine">Ready</div>
           <p class="filter-label">Search product code / name (all brands)</p>
           <input type="search" id="search" placeholder="e.g. Colorsilk, Black, Gel, Venus" autocomplete="off" />
-          <button type="button" class="btn-secondary" id="btnScanSearch" style="width:100%;">스캔 검색</button>
+          <button type="button" class="btn-secondary btn-scan-search" id="btnScanSearch">
+            <svg class="scan-barcode-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="2" y="4" width="2" height="16" fill="currentColor"/>
+              <rect x="6" y="4" width="1.5" height="16" fill="currentColor"/>
+              <rect x="9" y="4" width="3" height="16" fill="currentColor"/>
+              <rect x="14" y="4" width="1.5" height="16" fill="currentColor"/>
+              <rect x="17" y="4" width="2" height="16" fill="currentColor"/>
+              <rect x="21" y="4" width="1" height="16" fill="currentColor"/>
+            </svg>
+            스캔 검색
+          </button>
           <p class="filter-label">Browse by brand</p>
           <select id="brandSelect" class="brand-select" aria-label="Brand">
             <option value="">Select brand</option>
