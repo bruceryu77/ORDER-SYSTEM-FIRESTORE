@@ -272,8 +272,8 @@
       word-break: break-word;
       line-height: 1.35;
     }
-    .price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-    .stock { font-variant-numeric: tabular-nums; color: var(--muted); }
+    .price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; line-height: 1.35; }
+    .stock { font-variant-numeric: tabular-nums; color: var(--muted); line-height: 1.35; }
     .stock.out { color: var(--warn); font-weight: 600; }
     .qty-cell {
       white-space: nowrap;
@@ -346,7 +346,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
         column-gap: 12px;
-        align-items: end;
+        align-items: start;
         padding: 16px 12px;
         border-bottom: 1px solid var(--line);
       }
@@ -380,9 +380,12 @@
       td.mobile-detail {
         display: grid;
         gap: 3px;
+        align-content: start;
         padding: 9px 0 0;
         border-top: 1px solid #eee8df;
         font-size: 1rem;
+        line-height: 1.35;
+        min-height: 0;
       }
       td.mobile-detail::before {
         content: attr(data-label);
@@ -391,10 +394,11 @@
         font-weight: 700;
         letter-spacing: 0.06em;
         text-transform: uppercase;
+        line-height: 1.2;
       }
       td.qty-cell {
         display: flex;
-        align-items: flex-end;
+        align-items: flex-start;
         justify-content: flex-end;
         padding-top: 9px;
         border-top: 1px solid #eee8df;
