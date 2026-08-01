@@ -275,14 +275,26 @@
     .price { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
     .stock { font-variant-numeric: tabular-nums; color: var(--muted); }
     .stock.out { color: var(--warn); font-weight: 600; }
-    input.qty {
+    .qty-cell {
+      white-space: nowrap;
+    }
+    .qty-input {
       width: 72px;
+      min-height: 30px;
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 7px 8px;
       font: inherit;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
       text-align: center;
       background: #fff;
+      color: var(--ink);
+      box-sizing: border-box;
+    }
+    .qty-input::placeholder {
+      color: #b0a89c;
+      font-weight: 600;
     }
 
     @media (max-width: 640px) {
@@ -370,7 +382,7 @@
         border-top: 1px solid #eee8df;
       }
       td.qty-cell::before { content: none; }
-      input.qty {
+      .qty-input {
         width: 72px;
         min-height: 40px;
         font-size: 1rem;
@@ -1554,9 +1566,11 @@
     }
 
     function renderOptionRow(p) {
-      const qty = state.qtys[productKey(p)] || 0;
+      const key = productKey(p);
+      const qty = Number(state.qtys[key]) || 0;
       const stockClass = p.stock <= 0 ? "out" : "";
       const img = resolveImage(p);
+      const safeKey = escapeHtml(key);
       return `
         <tr>
           <td class="item-column">
@@ -1573,8 +1587,9 @@
           <td class="price mobile-detail" data-label="Price">${money(p.price)}</td>
           <td class="stock mobile-detail ${stockClass}" data-label="Stock">${p.stock <= 0 ? "0 (Out of stock)" : p.stock}</td>
           <td class="qty-cell">
-            <input class="qty" type="number" min="0" step="1" value="${qty}"
-              data-key="${escapeHtml(productKey(p))}" inputmode="numeric"
+            <input class="qty-input" type="number" min="0" step="1" inputmode="numeric"
+              data-key="${safeKey}"
+              value="${qty > 0 ? qty : ""}" placeholder="0"
               aria-label="${escapeHtml(p.name)} quantity" />
           </td>
         </tr>
@@ -1711,18 +1726,29 @@
       `;
     }
 
-    function adjustCartQty(key, delta) {
+    function setQtyForKey(key, qty) {
       if (!key) return;
-      const next = Math.max(0, (Number(state.qtys[key]) || 0) + delta);
+      const next = Math.max(0, Math.floor(Number(qty) || 0));
       if (next > 0) state.qtys[key] = next;
       else delete state.qtys[key];
-      refresh();
+      updateSummary();
+      saveDraft();
+      els.catalog.querySelectorAll(".qty-input").forEach((input) => {
+        if (input.getAttribute("data-key") !== key) return;
+        if (document.activeElement === input) return;
+        input.value = next > 0 ? String(next) : "";
+      });
+    }
+
+    function adjustCartQty(key, delta) {
+      if (!key) return;
+      const current = Number(state.qtys[key]) || 0;
+      setQtyForKey(key, current + delta);
     }
 
     function removeCartItem(key) {
       if (!key) return;
-      delete state.qtys[key];
-      refresh();
+      setQtyForKey(key, 0);
     }
 
     function updateStoreNameReminder() {
@@ -1948,16 +1974,32 @@
     });
 
     els.catalog.addEventListener("input", (e) => {
-      if (!e.target.classList.contains("qty")) return;
-      let qty = Number(e.target.value) || 0;
-      if (qty < 0) qty = 0;
-      e.target.value = qty;
-      const k = e.target.dataset.key;
-      if (qty > 0) state.qtys[k] = qty;
-      else delete state.qtys[k];
+      const input = e.target.closest(".qty-input");
+      if (!input || !els.catalog.contains(input)) return;
+      const key = input.getAttribute("data-key");
+      if (!key) return;
+      const raw = String(input.value || "").trim();
+      const qty = raw === "" ? 0 : Math.max(0, Math.floor(Number(raw) || 0));
+      if (qty > 0) state.qtys[key] = qty;
+      else delete state.qtys[key];
       updateSummary();
       saveDraft();
     });
+
+    els.catalog.addEventListener("focusin", (e) => {
+      const input = e.target.closest(".qty-input");
+      if (!input || !els.catalog.contains(input)) return;
+      if (input.value === "0") input.value = "";
+    });
+
+    els.catalog.addEventListener("blur", (e) => {
+      const input = e.target.closest(".qty-input");
+      if (!input || !els.catalog.contains(input)) return;
+      const key = input.getAttribute("data-key");
+      if (!key) return;
+      const qty = Number(state.qtys[key]) || 0;
+      input.value = qty > 0 ? String(qty) : "";
+    }, true);
 
     els.search.addEventListener("input", () => {
       if (els.search.value.trim()) state.brand = null;
